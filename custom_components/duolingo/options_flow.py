@@ -38,6 +38,7 @@ class DuolingoOptionFlow(OptionsFlow):
             return self.async_create_entry(title="", data=updated_data)
 
         DUOLINGO_SCHEMA = vol.Schema({
+            vol.Optional(CONF_USERNAME + "_label"): ConstantSelector(ConstantSelectorConfig(value=CONF_USERNAME_LABEL)),
             vol.Required(CONF_USERNAME, default=self._config_entry.data.get(CONF_USERNAME, [])): TextSelector(TextSelectorConfig(multiple=True, multiline=False)),
         })
 
