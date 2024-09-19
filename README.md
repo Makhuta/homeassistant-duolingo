@@ -10,7 +10,7 @@ Adds multiple sensors with information/statistics grabbed from Duolingo account
 
 ### Adding new device
 
-To add the **HoneyGain Scrapper** integration to your Home Assistant, use this My button:
+To add the **Duolingo Scrapper** integration to your Home Assistant, use this My button:
 
 <a href="https://my.home-assistant.io/redirect/config_flow_start?domain=duolingo" class="my badge" target="_blank"><img src="https://my.home-assistant.io/badges/config_flow_start.svg"></a>
 
@@ -24,12 +24,30 @@ If the above My button doesn’t work, you can also perform the following steps 
 
 - In the bottom right corner, select the [Add Integration button.](https://my.home-assistant.io/redirect/config_flow_start?domain=duolingo)
 
-- From the list, select **HoneyGain Scrapper**.
+- From the list, select **Duolingo Scrapper**.
 
 - Follow the instructions on screen to complete the setup.
 
 </details>
 
-## None
+## Note
 
 The users will be viewed from the JWT token point of view meaning that you might not see some datas when parsing other users with the same token.
+
+### How to get the JWT token?
+
+The JWT token is unique per user and will be different based on for whom you will be logged as in your browser. You can get the JWT token by opening following:
+
+Developer tools -> Go to the Console -> Insert the following command
+
+```javascript
+document.cookie.match(new RegExp('(^| )jwt_token=([^;]+)'))[0].slice(11)
+```
+
+Inside the Console is your unique JWT token, you can copy it and use it in HomeAssistant.
+
+PS. If your JWT token don't work make sure to not copy the brackets \" or \' from Console (they are there only to define the type of the return value which is in this case string)
+
+| Wrong | Right |
+| - | - |
+| 'YOUR_TOKEN' | YOUR_TOKEN |
