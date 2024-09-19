@@ -17,13 +17,14 @@ _LOGGER = logging.getLogger(__name__)
 class DuolingoDataCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
     def __init__(self, hass: HomeAssistant, clients: list[DuolingoAPI]):
         self._clients = clients
+        interval = self._clients[0].get_interval() if len(self._clients) > 0 else 30
 
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
             update_method=self._async_update_data,
-            update_interval=timedelta(minutes=30),
+            update_interval=timedelta(minutes=interval),
         )
     
     async def _async_update_data(self) -> Dict[str, Any]:

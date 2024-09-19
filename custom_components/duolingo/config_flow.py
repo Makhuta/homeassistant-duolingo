@@ -16,7 +16,8 @@ from homeassistant.helpers.selector import (
 from .const import (
     DOMAIN,
     CONF_USERNAME_LABEL,
-    CONF_JWT
+    CONF_JWT,
+    CONF_INTERVAL
 )
 from .helpers import setup_client
 from .duolingo_api import (
@@ -45,11 +46,13 @@ class DuolingoConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self._async_abort_entries_match({CONF_JWT: user_input[CONF_JWT]})
+            user_input = {**user_input, CONF_INTERVAL: user_input.get(CONF_INTERVAL, 30)}
             try:
                 await self.hass.async_add_executor_job(
                     setup_client,
                     user_input[CONF_USERNAME],
                     user_input[CONF_JWT],
+                    user_input[CONF_INTERVAL],
                 )
             except FailedToLogin as err:
                 errors = {'base': 'failed_to_login'}

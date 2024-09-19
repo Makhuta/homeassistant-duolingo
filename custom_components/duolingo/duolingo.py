@@ -17,6 +17,9 @@ class Struct:
     def __init__(self, **entries):
         self.__dict__.update(entries)
 
+    def get(self, key, default=None):
+        return self.__dict__.get(key, default)
+
 
 class DuolingoException(Exception):
     pass
@@ -57,7 +60,7 @@ class Duolingo(object):
         else:
             raise DuolingoException("Password, jwt, or session_file must be specified in order to authenticate.")
 
-        self.user_data = Struct(**self._get_data())
+        self.update_user_data()
         self.user_id = self.user_data.id
         self.voice_url_dict = None
 
@@ -123,6 +126,9 @@ class Duolingo(object):
     def _check_login(self):
         resp = self._make_req(f"https://duolingo.com/users/{self.username}")
         return resp.status_code == 200
+    
+    def update_user_data(self):
+        self.user_data = Struct(**self._get_data())
 
     def get_id_by_name(self, name=None):
         if not name:
@@ -145,7 +151,7 @@ class Duolingo(object):
             return
 
         self.username = r.json()["username"]
-        self.user_data = Struct(**self._get_data())
+        self.update_user_data()
 
     def get_leaderboard(self):
         """
@@ -239,7 +245,7 @@ class Duolingo(object):
         try:
             parse = request.json()['tracking_properties']
             if parse['learning_language'] == lang:
-                self.user_data = Struct(**self._get_data())
+                self.update_user_data()
         except ValueError:
             raise DuolingoException('Failed to switch language')
 
@@ -284,7 +290,7 @@ class Duolingo(object):
 
         for key in keys:
             if type(array) == dict:
-                data[key] = array[key]
+                data[key] = array.get(key)
             else:
                 data[key] = getattr(array, key, None)
 
@@ -387,8 +393,12 @@ class Duolingo(object):
                   'created', 'contribution_points', 'gplus_id', 'twitter_id',
                   'admin', 'invites_left', 'location', 'fullname', 'avatar',
                   'ui_language']
+        
+        tracking_fields = ["disable_leaderboards", "disable_third_party_tracking", "has_picture",
+                           "gems", "disable_events", "disable_shared_streak", "has_item_gold_subscription",
+                            "disable_mature_words", "num_item_streak_freeze_total", "num_sessions_completed"]
 
-        return self._make_dict(fields, self.user_data)
+        return {**self._make_dict(fields, self.user_data), **self._make_dict(tracking_fields, self.user_data.get("tracking_properties", {})), "total_xp": self._get_data_by_user_id(fields=["totalXp"])}
 
     def get_streak_info(self):
         """Get user's streak information."""
@@ -434,6 +444,7 @@ class Duolingo(object):
     def get_friends(self, limit=1000):
         """Get user's friends."""
         get = self._make_req(f'https://friends-prod.duolingo.com/users/{self.get_id_by_name()}/profile', params={"pageSize": limit})
+        print(get.json())
         return get.json()["following"]["users"]
 
     def _change_lang_to_abbr(self, lang):

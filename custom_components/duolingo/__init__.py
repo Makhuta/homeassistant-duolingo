@@ -8,7 +8,8 @@ from homeassistant.const import (
 
 from .const import (
     DOMAIN,
-    CONF_JWT
+    CONF_JWT,
+    CONF_INTERVAL
     )
 from .coordinator import DuolingoDataCoordinator
 from .helpers import setup_client
@@ -26,6 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             setup_client,
             config_entry.data[CONF_USERNAME],
             config_entry.data[CONF_JWT],
+            config_entry.data.get(CONF_INTERVAL, 30),
         )
     except FailedToLogin as err:
         raise ConfigEntryNotReady("Failed to Log-in") from err

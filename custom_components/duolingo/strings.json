@@ -21,7 +21,8 @@
         "init": {
           "data": {
             "username": "Username",
-            "jwt": "JWT Token"
+            "jwt": "JWT Token",
+            "interval": "Update interval (minutes)"
         }
         }
       }

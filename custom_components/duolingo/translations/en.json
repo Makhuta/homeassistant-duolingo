@@ -1,29 +1,30 @@
 {
-    "config": {
-      "step": {
-        "user": {
-          "data": {
-            "username": "Username",
-            "jwt": "JWT Token"
-          }
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "username": "Username",
+          "jwt": "JWT Token"
         }
-      },
-      "error": {
-        "failed_to_login": "Failed to Log-in"
-      },
-      "abort": {
-        "already_configured": "User is already configured (check README)",
-        "failed_to_login": "Failed to Log-in"
       }
     },
-    "options": {
-      "step": {
-        "init": {
-          "data": {
-            "username": "Username",
-            "jwt": "JWT Token"
-        }
-        }
+    "error": {
+      "failed_to_login": "Failed to Log-in"
+    },
+    "abort": {
+      "already_configured": "User is already configured (check README)",
+      "failed_to_login": "Failed to Log-in"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "username": "Username",
+          "jwt": "JWT Token",
+          "interval": "Update interval (minutes)"
+      }
       }
     }
   }
+}

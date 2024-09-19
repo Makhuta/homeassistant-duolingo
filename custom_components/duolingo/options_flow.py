@@ -14,6 +14,7 @@ from homeassistant.const import (
 from .const import (
     DOMAIN, 
     CONF_USERNAME_LABEL,
+    CONF_INTERVAL,
     )
 
 
@@ -32,6 +33,7 @@ class DuolingoOptionFlow(OptionsFlow):
             updated_data = {
                 **self._config_entry.data,
                 CONF_USERNAME: user_input.get(CONF_USERNAME),
+                CONF_INTERVAL: user_input.get(CONF_INTERVAL),
             }
             self._config_entry.data = updated_data
 
@@ -40,6 +42,7 @@ class DuolingoOptionFlow(OptionsFlow):
         DUOLINGO_SCHEMA = vol.Schema({
             vol.Optional(CONF_USERNAME + "_label"): ConstantSelector(ConstantSelectorConfig(value=CONF_USERNAME_LABEL)),
             vol.Required(CONF_USERNAME, default=self._config_entry.data.get(CONF_USERNAME, [])): TextSelector(TextSelectorConfig(multiple=True, multiline=False)),
+            vol.Required(CONF_INTERVAL, default=self._config_entry.data.get(CONF_INTERVAL, 30)): vol.All(vol.Coerce(int), vol.Range(min=10)),
         })
 
         # Display a form to gather user input
