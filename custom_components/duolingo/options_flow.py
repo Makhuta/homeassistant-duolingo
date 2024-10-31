@@ -35,7 +35,7 @@ class DuolingoOptionFlow(OptionsFlow):
                 CONF_USERNAME: user_input.get(CONF_USERNAME),
                 CONF_INTERVAL: user_input.get(CONF_INTERVAL),
             }
-            self._config_entry.data = updated_data
+            self.hass.config_entries.async_update_entry(self._config_entry, data=updated_data, minor_version=0, version=1)
 
             return self.async_create_entry(title="", data=updated_data)
 
