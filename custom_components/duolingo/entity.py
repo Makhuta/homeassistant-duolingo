@@ -43,6 +43,8 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
         self._description = description
         self.entity_id = f'sensor.{username}_duolingo_{description.name.lower().replace(" ", "_")}'
         self._attr_entity_category = description.entity_category
+        self._state = None
+        self._attrs = {}
 
     def _get_user_data(self) -> DataObject:
         return DataObject({**self.coordinator.data[self._username]}) if self.coordinator.data.get(self._username) else DataObject()
@@ -88,25 +90,26 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
             "identifiers": {(DOMAIN, f'{self._jwt}_Duolingo_{self._username}')},
         }
 
-    @property
-    def state(self) -> Optional[str]:
-        """Return the value of the sensor."""
+    def update_state(self):
         try:
             user_data = self._get_user_data()
             if user_data:
                 sensor_category = user_data.get(self._description.key)
                 if sensor_category:
                     if type(self._description.state) == str:
-                        return sensor_category.get(self._description.state)
+                        self._state = sensor_category.get(self._description.state)
                     if type(self._description.state) == functionType:
-                        return self._description.state(sensor_category.get())
+                        self._state =  self._description.state(sensor_category.get())
         except Exception as e:
             _LOGGER.err(e)
-            return None
-        return None
 
     @property
-    def extra_state_attributes(self) -> Dict[str, Any]:
+    def state(self) -> Optional[str]:
+        """Return the value of the sensor."""
+        self.update_state()
+        return self._state
+
+    def update_attributes(self):
         try:
             user_data = self._get_user_data()
             if user_data:
@@ -114,7 +117,7 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
                 sensor_category = user_data.get(self._description.key)
                 if sensor_category:
                     if type(attrs) == str:
-                        return sensor_category.get(attrs)
+                        self._attrs = sensor_category.get(attrs)
                     if type(attrs) == list:
                         output = {}
                         for attr in attrs:
@@ -126,10 +129,13 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
                                     output[attr.get("name")] = attr.get("value")(data)
                                 else:
                                     output[attr.get("name")] = data
-                        return output
+                        self._attrs = output
                     if type(attrs) == functionType:
-                        return attrs(sensor_category.get())
+                        self._attrs = attrs(sensor_category.get())
         except Exception as e:
             _LOGGER.err(e)
-            return {}
-        return {}
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        self.update_attributes()
+        return self._attrs
