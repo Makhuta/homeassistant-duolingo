@@ -69,6 +69,7 @@ class DuolingoAPI():
             "leaderboard": lambda:{"board": self.lingo.get_leaderboard(), "position": self.lingo.get_leaderboard_position()},
             "streak_info": self.lingo.get_streak_info,
             "friends": self.lingo.get_friends,
+            "daily_xp": self.lingo.get_daily_xp,
         }
 
         data = {}

@@ -2,7 +2,7 @@
 import re
 import json
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from json import JSONDecodeError
 
 import requests
@@ -12,6 +12,8 @@ __author__ = "Kartik Talwar"
 __email__ = "hi@kartikt.com"
 __url__ = "https://github.com/KartikTalwar/duolingo"
 
+import logging
+_LOGGER = logging.getLogger(__name__)
 
 class Struct:
     def __init__(self, **entries):
@@ -129,6 +131,7 @@ class Duolingo(object):
     
     def update_user_data(self):
         self.user_data = Struct(**self._get_data())
+        
 
     def get_id_by_name(self, name=None):
         if not name:
@@ -733,6 +736,34 @@ class Duolingo(object):
         except:
             raise Exception('Could not get word definition')
 
+    def get_daily_xp(self):
+        out = {}
+        date_timestamps = []
+        last_ts = None
+        for data in self.user_data.get("calendar", []):
+            dt_string = data.get("datetime")
+            if dt_string:
+                dt = datetime.fromtimestamp(dt_string/1000, tz=timezone.utc)
+                key_string = ("%02d.%02d.%04d" % (dt.day, dt.month, dt.year))
+                if key_string not in out:
+                    out[key_string] = data.get("improvement", 0)
+                    date_timestamps.append(datetime.strptime(key_string, "%d.%m.%Y").timestamp())
+                    if last_ts is None or datetime.strptime(last_ts, "%d.%m.%Y").timestamp() < datetime.strptime(key_string, "%d.%m.%Y").timestamp():
+                        last_ts = key_string
+                else:
+                    out[key_string] = out[key_string] + data.get("improvement", 0)
+        cropped_out = {}
+        today = datetime.now(tz=timezone.utc)
+        today_string = ("%02d.%02d.%04d" % (today.day, today.month, today.year))
+        cropped_out["last"] = out[last_ts] if last_ts is not None and last_ts == today_string else 0
+        sorted_timestamps = sorted(date_timestamps, reverse=True)
+        for dts in sorted_timestamps[:7]:
+            dt = datetime.fromtimestamp(dts)
+            key_string = ("%02d.%02d.%04d" % (dt.day, dt.month, dt.year))
+            cropped_out[key_string] = out[key_string]
+            
+        return cropped_out
+
     def get_daily_xp_progress(self):
         xpGoal, xpGains, streakData = self._get_data_by_user_id(fields=["xpGoal", "xpGains", "streakData"])
 
@@ -760,7 +791,6 @@ class Duolingo(object):
             "lessons_today": lessons,
             "xp_today": sum(x['xp'] for x in lessons)
         }
-
 
 if __name__ == "__main__":
     attrs = [

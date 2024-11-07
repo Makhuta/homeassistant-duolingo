@@ -86,6 +86,15 @@ SENSORS: list[DuolingoEntityDescription | Callable] = [
         entity_category=EntityCategory.DIAGNOSTIC,
         unit="day",
     ),
+    DuolingoEntityDescription(
+        key="daily_xp",
+        name="Today XP",
+        state=lambda x: x.get("last", 0),
+        attrs=lambda x: {item: x[item] for item in x if item != "last"},
+        icon="mdi:star-four-points",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        unit="XP",
+    ),
     lambda userCoordinator: generate_languages(userCoordinator)
 ]
 
