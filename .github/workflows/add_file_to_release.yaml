@@ -1,0 +1,44 @@
+name: Add Release with ZIP
+
+on:
+  push:
+    tags:
+      - 'v*'  # This workflow will trigger when a tag starting with 'v' is pushed, e.g., v1.0.0
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Create a ZIP file that includes only the necessary files
+      - name: Create ZIP file
+        run: |
+          mkdir -p output
+          zip -r output/duolingo.zip custom_components/duolingo
+
+      # Create GitHub Release
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: "${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+
+      # Upload the ZIP file to the release
+      - name: Upload ZIP file to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ steps.create_release.outputs.id }}
+          asset_path: output/duolingo.zip
+          asset_name: duolingo.zip
+          asset_content_type: application/zip
