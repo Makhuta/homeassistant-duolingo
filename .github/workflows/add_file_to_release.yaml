@@ -44,7 +44,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          release_id: ${{ steps.check_release.outputs.release_id != '' && steps.check_release.outputs.release_id || steps.create_release.outputs.id }}
+          upload_url: ${{ steps.check_release.outputs.release_id != '' && 'https://uploads.github.com/repos/' + github.repository + '/releases/' + steps.check_release.outputs.release_id + '/assets?name=duolingo.zip' || steps.create_release.outputs.upload_url }}
           asset_path: output/duolingo.zip
           asset_name: duolingo.zip
           asset_content_type: application/zip
