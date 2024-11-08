@@ -743,7 +743,7 @@ class Duolingo(object):
         for data in self.user_data.get("calendar", []):
             dt_string = data.get("datetime")
             if dt_string:
-                dt = datetime.fromtimestamp(dt_string/1000, tz=timezone.utc)
+                dt = datetime.fromtimestamp(dt_string/1000)
                 key_string = ("%02d.%02d.%04d" % (dt.day, dt.month, dt.year))
                 if key_string not in out:
                     out[key_string] = data.get("improvement", 0)
@@ -753,7 +753,7 @@ class Duolingo(object):
                 else:
                     out[key_string] = out[key_string] + data.get("improvement", 0)
         cropped_out = {}
-        today = datetime.now(tz=timezone.utc)
+        today = datetime.now()
         today_string = ("%02d.%02d.%04d" % (today.day, today.month, today.year))
         cropped_out["last"] = out[last_ts] if last_ts is not None and last_ts == today_string else 0
         sorted_timestamps = sorted(date_timestamps, reverse=True)
