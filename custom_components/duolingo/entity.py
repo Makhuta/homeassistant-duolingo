@@ -139,3 +139,125 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
     def extra_state_attributes(self) -> Dict[str, Any]:
         self.update_attributes()
         return self._attrs
+
+
+
+
+class DuolingoLeaderboardSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
+    def __init__(self, coordinator: DuolingoDataCoordinator, jwt: str, usernames: list, description: DuolingoEntityDescription):
+        super().__init__(coordinator)
+        self._usernames = usernames
+        self._jwt = jwt
+        self._description = description
+        self.entity_id = f'sensor.leaderboard_duolingo_{description.name.lower().replace(" ", "_")}'
+        self._attr_entity_category = description.entity_category
+        self._state = None
+        self._attrs = {}
+        self._data = []
+
+    def _get_users_data(self) -> list:
+        return [DataObject({**self.coordinator.data[username], "username": username}) if self.coordinator.data.get(username) else DataObject() for username in self._usernames]
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return f'{self._description.name}'
+
+    @property
+    def unique_id(self) -> str:
+        """Return the unique ID of the sensor."""
+        return f'{self._jwt}_Duolingo_Leaderboard_{self._description.name}'
+
+    @property
+    def icon(self):
+        return self._description.icon
+
+    @property
+    def unit_of_measurement(self):
+        """Return the unit the value is expressed in."""
+        return self._description.unit
+
+    @property
+    def device_info(self) -> Dict[str, Any]:
+        return {
+            "name": "Leaderboard",
+            "manufacturer": "Duolingo",
+            "model": "Scrapper",
+            "identifiers": {(DOMAIN, f'{self._jwt}_Duolingo_Leaderboard')},
+        }
+
+    def update(self):
+        try:
+            users_data = self._get_users_data()
+            out_datas = []
+            for user_data in users_data:
+                category = user_data.get(self._description.key)
+                username = user_data.get("username")
+                if category is None:
+                    continue
+                leaderboard = user_data.get("leaderboard")
+                is_main = leaderboard is not None and leaderboard.get("position") is not None
+                state = {}
+                if type(self._description.state) == str:
+                    state = { "xp": category.get(self._description.state), "username": username, "is_main": is_main}
+                if type(self._description.state) == functionType:
+                    state = { "xp": self._description.state(category.get()), "username": username, "is_main": is_main}
+
+                out_datas.append(state)
+
+            attrs = {}
+            for id, out_data in enumerate(sorted(out_datas, key=lambda x: (-x["xp"], x["username"])), start=1):
+                if out_data["is_main"]:
+                    self._state = id
+                attrs[f'{id}. {out_data["username"]}'] = out_data["xp"]
+
+            self._attrs = attrs
+
+            return
+            if len(users_data) >= 1:
+                sensor_category = users_data.get(self._description.key)
+                if sensor_category:
+                    if type(self._description.state) == str:
+                        self._state = sensor_category.get(self._description.state)
+                    if type(self._description.state) == functionType:
+                        self._state =  self._description.state(sensor_category.get())
+        except Exception as e:
+            _LOGGER.err(e)
+
+    @property
+    def state(self) -> Optional[str]:
+        """Return the value of the sensor."""
+        self.update()
+        return self._state
+
+    def update_attributes(self):
+        try:
+            return
+            users_data = self._get_users_data()
+            if users_data:
+                attrs = self._description.attrs
+                sensor_category = users_data.get(self._description.key)
+                if sensor_category:
+                    if type(attrs) == str:
+                        self._attrs = sensor_category.get(attrs)
+                    if type(attrs) == list:
+                        output = {}
+                        for attr in attrs:
+                            data = sensor_category.get(attr.get("key"))
+                            if data:
+                                if not attr.get("name"):
+                                    continue
+                                if "value" in list(attr.keys()):
+                                    output[attr.get("name")] = attr.get("value")(data)
+                                else:
+                                    output[attr.get("name")] = data
+                        self._attrs = output
+                    if type(attrs) == functionType:
+                        self._attrs = attrs(sensor_category.get())
+        except Exception as e:
+            _LOGGER.err(e)
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        self.update()
+        return self._attrs

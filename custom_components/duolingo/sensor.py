@@ -1,5 +1,6 @@
 from typing import Any, Dict, Optional, Final
 from collections.abc import Callable
+from datetime import datetime, timedelta
 
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.core import HomeAssistant
@@ -18,10 +19,21 @@ from .const import (
 )
 from .coordinator import DuolingoDataCoordinator
 from .helpers import convert_objects, camel_to_snake
-from .entity import DuolingoSensor, DuolingoEntityDescription
+from .entity import DuolingoSensor, DuolingoLeaderboardSensor, DuolingoEntityDescription
 
 import logging
 _LOGGER = logging.getLogger(__name__)
+
+def add_weekly_xp(x):
+    today = datetime.today()
+    out = {}
+    for day_of_week in range(today.weekday() + 1):
+        new_date = today - timedelta(days=day_of_week)
+        date_key = "%02d.%02d.%04d" % (new_date.day, new_date.month, new_date.year)
+        if date_key in x:
+            out[date_key] = x[date_key]
+    
+    return out
 
 SENSORS: list[DuolingoEntityDescription | Callable] = [
     DuolingoEntityDescription(
@@ -140,6 +152,30 @@ async def async_setup_entry(
             else:
                 sensor_per_username.append(DuolingoSensor(coordinator, jwt, username, sensor))
 
+    sensor_per_username.append(DuolingoLeaderboardSensor(
+        coordinator,
+        jwt,
+        usernames,
+        DuolingoEntityDescription(
+                key="daily_xp",
+                name="Today",
+                state=lambda x: x.get("last", 0),
+                icon="mdi:sort-descending",
+                entity_category=EntityCategory.DIAGNOSTIC,
+            )
+        ))
+    sensor_per_username.append(DuolingoLeaderboardSensor(
+        coordinator,
+        jwt,
+        usernames,
+        DuolingoEntityDescription(
+                key="daily_xp",
+                name="Week",
+                state=lambda x: sum([x[day] for day in add_weekly_xp(x)]),
+                icon="mdi:sort-descending",
+                entity_category=EntityCategory.DIAGNOSTIC,
+            )
+        ))
     async_add_entities(
         sensor_per_username
     )
