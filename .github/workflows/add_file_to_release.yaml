@@ -19,7 +19,8 @@ jobs:
       - name: Create ZIP file
         run: |
           mkdir -p output
-          zip -r output/duolingo.zip custom_components/duolingo
+          cd custom_components/duolingo
+          zip -r ../../output/duolingo.zip ./*
 
       - name: Check if release exists
         id: check_release
