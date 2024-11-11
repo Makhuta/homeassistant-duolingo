@@ -162,6 +162,7 @@ async def async_setup_entry(
                 state=lambda x: x.get("last", 0),
                 icon="mdi:sort-descending",
                 entity_category=EntityCategory.DIAGNOSTIC,
+                unit="place",
             )
         ))
     sensor_per_username.append(DuolingoLeaderboardSensor(
@@ -174,6 +175,7 @@ async def async_setup_entry(
                 state=lambda x: sum([x[day] for day in add_weekly_xp(x)]),
                 icon="mdi:sort-descending",
                 entity_category=EntityCategory.DIAGNOSTIC,
+                unit="place",
             )
         ))
     async_add_entities(

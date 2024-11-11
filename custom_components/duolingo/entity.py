@@ -193,15 +193,17 @@ class DuolingoLeaderboardSensor(CoordinatorEntity[DuolingoDataCoordinator], Sens
             for user_data in users_data:
                 category = user_data.get(self._description.key)
                 username = user_data.get("username")
+                avatar = "https:" + str(user_data.get("user_info").get("avatar")) + "/large" if user_data.get("user_info") is not None else None
+                fullname = user_data.get("user_info").get("fullname") if user_data.get("user_info") is not None else None
                 if category is None:
                     continue
                 leaderboard = user_data.get("leaderboard")
                 is_main = leaderboard is not None and leaderboard.get("position") is not None
                 state = {}
                 if type(self._description.state) == str:
-                    state = { "xp": category.get(self._description.state), "username": username, "is_main": is_main}
+                    state = { "username": username, "fullname": fullname, "xp": category.get(self._description.state), "avatar": avatar, "is_main": is_main}
                 if type(self._description.state) == functionType:
-                    state = { "xp": self._description.state(category.get()), "username": username, "is_main": is_main}
+                    state = { "username": username, "fullname": fullname, "xp": self._description.state(category.get()), "avatar": avatar, "is_main": is_main}
 
                 out_datas.append(state)
 
@@ -209,18 +211,9 @@ class DuolingoLeaderboardSensor(CoordinatorEntity[DuolingoDataCoordinator], Sens
             for id, out_data in enumerate(sorted(out_datas, key=lambda x: (-x["xp"], x["username"])), start=1):
                 if out_data["is_main"]:
                     self._state = id
-                attrs[f'{id}. {out_data["username"]}'] = out_data["xp"]
+                attrs[f'{id}'] = {key: out_data[key] for key in out_data if key in ["xp", "username", "avatar", "fullname"]}
 
             self._attrs = attrs
-
-            return
-            if len(users_data) >= 1:
-                sensor_category = users_data.get(self._description.key)
-                if sensor_category:
-                    if type(self._description.state) == str:
-                        self._state = sensor_category.get(self._description.state)
-                    if type(self._description.state) == functionType:
-                        self._state =  self._description.state(sensor_category.get())
         except Exception as e:
             _LOGGER.err(e)
 
