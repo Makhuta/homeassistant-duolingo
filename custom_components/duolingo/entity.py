@@ -161,7 +161,7 @@ class DuolingoLeaderboardSensor(CoordinatorEntity[DuolingoDataCoordinator], Sens
     @property
     def name(self) -> str:
         """Return the name of the sensor."""
-        return f'{self._description.name}'
+        return f'Leaderboard {self._description.name}'
 
     @property
     def unique_id(self) -> str:
