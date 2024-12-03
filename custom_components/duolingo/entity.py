@@ -14,6 +14,11 @@ from .duolingo_api import DataObject
 import logging
 _LOGGER = logging.getLogger(__name__)
 
+
+def sanitize_dict(fields):
+    """Ensure all field keys are strings."""
+    return {str(k): v for k, v in fields.items()}
+
 class DuolingoEntityDescription():
     def __init__(
         self,
@@ -138,7 +143,7 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         self.update_attributes()
-        return self._attrs
+        return sanitize_dict(self._attrs)
 
 
 
@@ -253,4 +258,4 @@ class DuolingoLeaderboardSensor(CoordinatorEntity[DuolingoDataCoordinator], Sens
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
         self.update()
-        return self._attrs
+        return sanitize_dict(self._attrs)
