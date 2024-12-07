@@ -66,7 +66,7 @@ class DuolingoAPI():
         functions = {
             "user_info": lambda: {**self.lingo.get_user_info(), "languages": [value["language_string"] for key, value in self.lingo.get_languages_details().items() if value.get("language_string")]},
             "languages_details": self.lingo.get_languages_details,
-            "leaderboard": lambda:{"board": self.lingo.get_leaderboard(), "position": self.lingo.get_leaderboard_position()},
+            "leaderboard": lambda:{"board": self.lingo.get_leaderboard(), "position": self.lingo.get_leaderboard_position(), "tier": self.lingo.get_leaderboard_tier()},
             "streak_info": self.lingo.get_streak_info,
             "friends": self.lingo.get_friends,
             "daily_xp": self.lingo.get_daily_xp,

@@ -175,6 +175,26 @@ class Duolingo(object):
             return []
         return leader_data["active"]["cohort"]["rankings"]
 
+    def get_leaderboard_tier(self):
+        """
+        Get user's rank in the week in descending order, stream from
+        ``https://duolingo-leaderboards-prod.duolingo.com/leaderboards/7d9f5dd1-8423-491a-91f2-2532052038ce/users/<user_id>
+
+        :param unit: maybe week or month
+        :type unit: str
+        :param before: Datetime in format '2015-07-06 05:42:24'
+        :type before: Union[datetime, str]
+        :rtype: List
+        """
+
+        url = f"https://duolingo-leaderboards-prod.duolingo.com/leaderboards/7d9f5dd1-8423-491a-91f2-2532052038ce/users/{self.user_id}"
+
+        leader_data = self._make_req(url).json()
+        return {
+            "tier": leader_data.get("tier"),
+            "streak_in_tier": leader_data.get("streak_in_tier"),
+        }
+
     def get_leaderboard_position(self):
         for i, player in enumerate(self.get_leaderboard()):
             if player["user_id"] == self.user_id:

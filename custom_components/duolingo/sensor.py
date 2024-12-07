@@ -15,7 +15,8 @@ from homeassistant.const import (
 from .const import (
     DOMAIN,
     CONF_JWT,
-    functionType
+    functionType,
+    TIER_LIST,
 )
 from .coordinator import DuolingoDataCoordinator
 from .helpers import convert_objects, camel_to_snake
@@ -60,6 +61,14 @@ SENSORS: list[DuolingoEntityDescription | Callable] = [
         state="position",
         attrs=lambda x: {(id + 1): {camel_to_snake(key): value for key, value in x.get("board")[id].items() if key in ["display_name", "has_plus", "has_recent_activity_15", "score", "streak_extended_today", "user_id"]} for id in range(len(x.get("board")))},
         icon="mdi:bulletin-board",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    DuolingoEntityDescription(
+        key="leaderboard",
+        name="Leaderboard Tier",
+        state=lambda x: TIER_LIST.get(str(x.get("tier.tier")), x.get("tier.tier")),
+        attrs=lambda x: {"Tier": x.get("tier.tier"), "Tier name": TIER_LIST.get(str(x.get("tier.tier")), "Unknown"), "Streak in tier": x.get("tier.streak_in_tier")},
+        icon="mdi:diamond-stone",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     DuolingoEntityDescription(
