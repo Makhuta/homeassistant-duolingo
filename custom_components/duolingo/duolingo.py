@@ -66,8 +66,7 @@ class Duolingo(object):
         self.user_id = self.user_data.id
         self.voice_url_dict = None
 
-    def _make_req(self, url, data=None, params=None, method=None):
-        headers = {}
+    def _make_req(self, url, data=None, params=None, method=None, headers={}):
         if self.jwt is not None:
             headers['Authorization'] = 'Bearer ' + self.jwt
             self.session.cookies.set("jwt_token", self.jwt, domain=".duolingo.com")
@@ -467,7 +466,6 @@ class Duolingo(object):
     def get_friends(self, limit=1000):
         """Get user's friends."""
         get = self._make_req(f'https://friends-prod.duolingo.com/users/{self.get_id_by_name()}/profile', params={"pageSize": limit})
-        print(get.json())
         return get.json()["following"]["users"]
 
     def _change_lang_to_abbr(self, lang):
@@ -811,6 +809,123 @@ class Duolingo(object):
             "lessons_today": lessons,
             "xp_today": sum(x['xp'] for x in lessons)
         }
+    
+    def get_friend_streaks(self):
+        out = {}
+        matches = set()
+        resp_confirmed = self._make_req(f'https://www.duolingo.com/2017-06-30/friends/users/{self.user_id}/matches', params={"activityName": "friendsStreak"})
+
+        if resp_confirmed.status_code != 200:
+            return out
+        match_friends = resp_confirmed.json().get("friendsStreak") if resp_confirmed.json() else None
+        if match_friends is None:
+            return out
+        
+        for match_confirmed in match_friends.get("confirmedMatches", []):
+            matchId = match_confirmed.get("matchId")
+            if matchId is None:
+                continue
+            match_users = match_confirmed.get("usersInMatch", [])
+            for match_user in match_users:
+                matchUserId = match_user.get("userId")
+                if matchUserId is None or matchUserId == self.user_id:
+                    continue
+                picture = match_user.get("picture")
+                matches.add(matchId)
+                out[matchId] = {
+                    "id": matchUserId,
+                    "name": match_user.get("name"),
+                    "picture": (picture if picture.endswith("/large") else (picture + "/large")) if picture is not None else picture,
+                }
+
+        resp_matches = self._make_req(f'https://www.duolingo.com/friends-streak/matches', params={"matchIds": ",".join(list(matches))})
+
+        if resp_matches.status_code != 200:
+            return out
+        for match in resp_matches.json().get("friendsStreak", []) if resp_matches.json() else []:
+            matchId = match.get("matchId")
+            if matchId is None:
+                continue
+            match_streaks = match.get("streaks", [])
+            if len(match_streaks) == 0:
+                continue
+            out[matchId] = {
+                **out[matchId],
+                "length": match_streaks[0].get("streakLength", 0),
+                "start_date": match_streaks[0].get("startDate", "1900-01-01"),
+                "end_date": match_streaks[0].get("endDate", "1900-01-01"),
+                "extend_date": match_streaks[0].get("lastExtendedDate", "1900-01-01"),
+            }
+            out[matchId]["extended"] = out[matchId]["extend_date"] == datetime.now().strftime("%Y-%m-%d")
+
+        return [value for key, value in out.items()]
+    
+
+    def get_quests(self):
+        headers = {
+            'Accepts-Encoding': "gzip, deflate, br, zstd",
+            'Accept': "application/json; charset=UTF-8"
+        }
+        out = {}
+        try:
+            resp_quests = self._make_req(f'https://goals-api.duolingo.com/users/{self.user_id}/quests', headers=headers)
+            
+
+            if resp_quests.status_code != 200:
+                return out
+        
+            quests = resp_quests.json().get("quests", [])
+        except:
+            return out
+
+        friend_quest = {}
+        if len(quests) != 0:
+            quest = quests[0]
+            friend_quest["id"] = quest.get("goalId", "unknown")
+            friend_quest["threshold"] = quest.get("questThreshold", 0)
+            friend_quest["active"] = quest.get("questState") == "ACTIVE"
+            friend_quest["points"] = quest.get("questPoints", 0)
+            friend_quest["user"] = {
+                "id": None,
+                "name": "unknown",
+                "avatar": None
+            }
+            users = quest.get("otherQuestParticipants", [])
+            if len(users) != 0:
+                user = users[0]
+                friend_quest["user"]["id"] = user.get("userId", 0)
+                friend_quest["user"]["name"] = user.get("displayName")
+                avatar = user.get("avatarUrl")
+                friend_quest["user"]["avatar"] = avatar if avatar.endswith("/large") else avatar + "/large" if avatar is not None else avatar
+            out["friend_quest"] = friend_quest
+
+        nowtime = datetime.now()
+        try:
+            resp_progress = self._make_req(f'https://goals-api.duolingo.com/users/{self.user_id}/progress', headers=headers, params={"timezone": nowtime.astimezone().tzinfo, "ui_language": "en"})
+
+            if resp_progress.status_code != 200:
+                return out
+
+            goals = resp_progress.json().get("goals", {})
+        except:
+            return out
+        progress = goals.get("progress", {})
+        details = goals.get("details", {})
+
+        friend_quest_details = details.get(out["friend_quest"]["id"], {})
+        out["friend_quest"]["progress"] = {
+            "total": friend_quest_details.get("progress", 0),
+            "me": {
+                "total": sum(friend_quest_details.get("progressIncrements", [])),
+                "increments": friend_quest_details.get("progressIncrements", []),
+            },
+            "friend": {
+                "total": sum(friend_quest_details.get("socialProgress", [])[0].get("progressIncrements", []) if len(friend_quest_details.get("socialProgress", [])) else [0 for i in range(6)]),
+                "increments": friend_quest_details.get("socialProgress", [])[0].get("progressIncrements", []) if len(friend_quest_details.get("socialProgress", [])) else [0 for i in range(6)],
+            },
+        }
+
+        return out
 
 if __name__ == "__main__":
     attrs = [

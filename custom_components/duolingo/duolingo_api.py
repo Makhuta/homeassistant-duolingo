@@ -65,10 +65,12 @@ class DuolingoAPI():
     def update(self):
         functions = {
             "user_info": lambda: {**self.lingo.get_user_info(), "languages": [value["language_string"] for key, value in self.lingo.get_languages_details().items() if value.get("language_string")]},
+            "quests": self.lingo.get_quests,
             "languages_details": self.lingo.get_languages_details,
             "leaderboard": lambda:{"board": self.lingo.get_leaderboard(), "position": self.lingo.get_leaderboard_position(), "tier": self.lingo.get_leaderboard_tier()},
             "streak_info": self.lingo.get_streak_info,
             "friends": self.lingo.get_friends,
+            "friends_streaks": self.lingo.get_friend_streaks,
             "daily_xp": self.lingo.get_daily_xp,
         }
 
@@ -83,9 +85,9 @@ class DuolingoAPI():
             try:
                 data[key] = DataObject(function())
             except Exception as err:
-                _LOGGER.err(err)
+                _LOGGER.error(f'{key} errored')
+                _LOGGER.error(err)
                 data[key] = DataObject()
-                pass
 
         return data
 

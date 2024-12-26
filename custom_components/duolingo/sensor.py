@@ -36,6 +36,11 @@ def add_weekly_xp(x):
     
     return out
 
+def get_prefix(d, p):
+    p = p + "."
+    out = {key.removeprefix(p): value for key, value in d.items() if key.startswith(p)}
+    return out
+
 SENSORS: list[DuolingoEntityDescription | Callable] = [
     DuolingoEntityDescription(
         key="user_info",
@@ -117,7 +122,16 @@ SENSORS: list[DuolingoEntityDescription | Callable] = [
         entity_category=EntityCategory.DIAGNOSTIC,
         unit="XP",
     ),
-    lambda userCoordinator: generate_languages(userCoordinator)
+    DuolingoEntityDescription(
+        key="quests",
+        name="Friend Quest",
+        state=lambda x: get_prefix(x, "friend_quest").get("user.name", "unknown"),
+        attrs=lambda x: {key.replace(".", "_"): get_prefix(x, "friend_quest").get(key) for key in get_prefix(x, "friend_quest").keys()},
+        icon="mdi:account-child",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    lambda userCoordinator: generate_languages(userCoordinator),
+    lambda userCoordinator: generate_friend_streaks(userCoordinator),
 ]
 
 def generate_languages(userCoordinator) -> list[DuolingoEntityDescription]:
@@ -139,6 +153,39 @@ def generate_languages(userCoordinator) -> list[DuolingoEntityDescription]:
                     entity_category=EntityCategory.DIAGNOSTIC
                 )
             )
+
+    return generated
+
+def get_by_item(l, key, value, default=None):
+    for item in l:
+        if item[key] == value:
+            return item
+    return default
+
+def generate_friend_streaks(userCoordinator) -> list[DuolingoEntityDescription]:
+    friends_streaks = userCoordinator.get("friends_streaks")
+
+    generated = []
+    if friends_streaks is None:
+        return generated
+    for friend_streak in friends_streaks.get():
+        id = friend_streak.get("id")
+        if id is None:
+            continue
+        generated.append(
+            DuolingoEntityDescription(
+                key="friends_streaks",
+                name=f'Friend Streak {friend_streak.get("name", "unknown")}',
+                state=lambda x, id=id: get_by_item(x, "id", id, {}).get("length", 0),
+                attrs=lambda x, id=id: get_by_item(x, "id", id, {}),
+                icon=("mdi:fire", "mdi:fire-off"),
+                icon_switch=lambda x, id=id: get_by_item(x, "id", id, {}).get("extended", False),
+                entity_category=EntityCategory.DIAGNOSTIC,
+                unit="day"
+            )
+        )
+
+
 
     return generated
 
