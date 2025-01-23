@@ -46,8 +46,13 @@ document.cookie.match(new RegExp('(^| )jwt_token=([^;]+)'))[0].slice(11)
 
 Inside the Console is your unique JWT token, you can copy it and use it in HomeAssistant.
 
-PS. If your JWT token don't work make sure to not copy the brackets \" or \' from Console (they are there only to define the type of the return value which is in this case string)
+### Possible problems
+
+1. If your JWT token don't work make sure to not copy the brackets \" or \' from Console (they are there only to define the type of the return value which is in this case string)
 
 | Wrong | Right |
 | - | - |
 | 'YOUR_TOKEN' | YOUR_TOKEN |
+
+2. If you are unable to paste into your browser console (the command for getting the Duolingo token) type <code>allow pasting</code> into the console and press Enter, after that you should be able to paste the command.
+
