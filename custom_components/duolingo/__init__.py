@@ -10,11 +10,13 @@ from homeassistant.helpers.entity_registry import async_get as async_get_entity_
 from homeassistant.components.persistent_notification import (
     async_create as async_create_persistent_notification,
 )
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .const import (
     DOMAIN,
     CONF_JWT,
-    CONF_INTERVAL
+    CONF_INTERVAL,
+    FORCE_SCRAPE,
     )
 from .coordinator import DuolingoDataCoordinator
 from .helpers import setup_client
@@ -24,6 +26,7 @@ from .duolingo_api import (
 
 PLATFORMS = [
     Platform.SENSOR,
+    Platform.BUTTON,
 ]
 
 async def cleanup_existing_entities_and_devices(hass: HomeAssistant, config_entry: ConfigEntry):
@@ -53,6 +56,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
+    async_dispatcher_connect(coordinator.hass, FORCE_SCRAPE.format(config_entry.entry_id), coordinator.async_refresh)
+
 
     await cleanup_existing_entities_and_devices(hass, config_entry)
 

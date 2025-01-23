@@ -17,5 +17,6 @@ TIER_LIST: Final = {
                         "8": "Obsidian",
                         "9": "Diamond",
                     }
+FORCE_SCRAPE: Final = "scrape_duolingo_data"
 
 functionType: Final = type(lambda _:_)
