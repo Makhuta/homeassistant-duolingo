@@ -130,6 +130,14 @@ SENSORS: list[DuolingoEntityDescription | Callable] = [
         icon="mdi:account-child",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
+    DuolingoEntityDescription(
+        key="quests",
+        name="Monthly Challenge",
+        state=lambda x: get_prefix(x, "monthly_challenge").get("progress"),
+        attrs=lambda x: get_prefix(x, "monthly_challenge"),
+        icon="mdi:calendar-multiselect-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
     lambda userCoordinator: generate_languages(userCoordinator),
     lambda userCoordinator: generate_friend_streaks(userCoordinator),
 ]

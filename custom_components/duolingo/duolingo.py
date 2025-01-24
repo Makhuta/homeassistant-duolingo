@@ -925,7 +925,49 @@ class Duolingo(object):
             },
         }
 
+        try:
+            resp_schema = self._make_req(f'https://goals-api.duolingo.com/schema', headers=headers, params={"ui_language": "en"})
+
+            if resp_schema.status_code != 200:
+                return out
+            
+            schema = resp_schema.json().get("goals", [])
+        except:
+            return out
+        
+        try:
+            challenge = {
+                "name": None
+            }
+            challenge_name = None
+            num_of_days = 0
+            for y in range(nowtime.year - 1, nowtime.year + 2):
+                for m in range(nowtime.month - 1, nowtime.month + 2):
+                    challenge_name = f'{y}_{m:02}_monthly_challenge'
+                    if challenge_name in details:
+                        challenge["name"] = challenge_name
+                        num_of_days = (nowtime.replace(month=m % 12 + 1, day=1) - timedelta(days=1)).day
+                        break
+                if challenge["name"]:
+                    break
+
+            if not challenge["name"]:
+                return out
+            
+            for schema_goal in schema:
+                if schema_goal.get("goalId", "") == challenge_name:
+                    challenge["threshold"] = schema_goal.get("threshold", 0)
+                    challenge["name"] = schema_goal.get("title", {}).get("uiString", "Unknown Name")
+
+            challenge["progress"] = min(challenge["threshold"], details.get(challenge_name, {}).get("progress", 0))
+            challenge["increments"] = details.get(challenge_name, {}).get("progressIncrements", [0] * num_of_days)
+
+            out["monthly_challenge"] = challenge
+        except:
+            return out
+
         return out
+
 
 if __name__ == "__main__":
     attrs = [
