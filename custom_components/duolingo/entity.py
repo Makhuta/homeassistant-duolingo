@@ -91,7 +91,7 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
         return {
             "name": self._username,
             "manufacturer": "Duolingo",
-            "model": "Scrapper",
+            "model": "Scraper",
             "identifiers": {(DOMAIN, f'{self._jwt}_Duolingo_{self._username}')},
         }
 
@@ -187,7 +187,7 @@ class DuolingoLeaderboardSensor(CoordinatorEntity[DuolingoDataCoordinator], Sens
         return {
             "name": "Leaderboard",
             "manufacturer": "Duolingo",
-            "model": "Scrapper",
+            "model": "Scraper",
             "identifiers": {(DOMAIN, f'{self._jwt}_Duolingo_Leaderboard')},
         }
 

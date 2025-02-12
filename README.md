@@ -1,4 +1,4 @@
-# Data scrapper for Duolingo
+# Data scraper for Duolingo
 Adds multiple sensors with information/statistics grabbed from Duolingo account
 
 ## Installation
@@ -10,7 +10,7 @@ Adds multiple sensors with information/statistics grabbed from Duolingo account
 
 ### Adding new device
 
-To add the **Duolingo Scrapper** integration to your Home Assistant, use this My button:
+To add the **Duolingo Scraper** integration to your Home Assistant, use this My button:
 
 <a href="https://my.home-assistant.io/redirect/config_flow_start?domain=duolingo" class="my badge" target="_blank"><img src="https://my.home-assistant.io/badges/config_flow_start.svg"></a>
 
@@ -24,7 +24,7 @@ If the above My button doesn’t work, you can also perform the following steps 
 
 - In the bottom right corner, select the [Add Integration button.](https://my.home-assistant.io/redirect/config_flow_start?domain=duolingo)
 
-- From the list, select **Duolingo Scrapper**.
+- From the list, select **Duolingo Scraper**.
 
 - Follow the instructions on screen to complete the setup.
 
