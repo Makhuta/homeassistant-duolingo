@@ -879,11 +879,12 @@ class Duolingo(object):
             return out
 
         friend_quest = {}
-        if len(quests) != 0:
-            quest = quests[0]
+        for quest in quests:
+            state = quest.get("questState", "")
             friend_quest["id"] = quest.get("goalId", "unknown")
             friend_quest["threshold"] = quest.get("questThreshold", 0)
-            friend_quest["active"] = quest.get("questState") == "ACTIVE"
+            friend_quest["active"] = state == "ACTIVE"
+            friend_quest["state"] = state.replace("_", " ").capitalize()
             friend_quest["points"] = quest.get("questPoints", 0)
             friend_quest["user"] = {
                 "id": None,
@@ -898,6 +899,8 @@ class Duolingo(object):
                 avatar = user.get("avatarUrl")
                 friend_quest["user"]["avatar"] = avatar if avatar.endswith("/large") else avatar + "/large" if avatar is not None else avatar
             out["friend_quest"] = friend_quest
+            if state == "ACTIVE" or state == "NOT_STARTED":
+                break
 
         nowtime = datetime.now()
         try:
@@ -916,8 +919,8 @@ class Duolingo(object):
         out["friend_quest"]["progress"] = {
             "total": friend_quest_details.get("progress", 0),
             "me": {
-                "total": sum(friend_quest_details.get("progressIncrements", [])),
-                "increments": friend_quest_details.get("progressIncrements", []),
+                "total": sum(friend_quest_details.get("progressIncrements", []) if len(friend_quest_details.get("progressIncrements", [])) else [0 for i in range(6)]),
+                "increments": friend_quest_details.get("progressIncrements", []) if len(friend_quest_details.get("progressIncrements", [])) else [0 for i in range(6)],
             },
             "friend": {
                 "total": sum(friend_quest_details.get("socialProgress", [])[0].get("progressIncrements", []) if len(friend_quest_details.get("socialProgress", [])) else [0 for i in range(6)]),
