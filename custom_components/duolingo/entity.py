@@ -133,8 +133,6 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
                                 if "value" in list(attr.keys()):
                                     if attr.get('name') == 'avatar':
                                         # Set the entity_picture attribute for use with entity badge and similar Lovelace cards
-                                        # FIXME: Should this completely replace the avatar as an if/else statement?
-                                        #        Would need to co-ordinate such a change with https://github.com/Makhuta/lovelace-duolingo-card
                                         output['entity_picture'] = attr.get('value')(data)
                                     output[attr.get("name")] = attr.get("value")(data)
                                 else:
