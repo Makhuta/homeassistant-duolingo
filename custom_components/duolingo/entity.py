@@ -131,6 +131,9 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
                                 if not attr.get("name"):
                                     continue
                                 if "value" in list(attr.keys()):
+                                    if attr.get('name') == 'avatar':
+                                        # Set the entity_picture attribute for use with entity badge and similar Lovelace cards
+                                        output['entity_picture'] = attr.get('value')(data)
                                     output[attr.get("name")] = attr.get("value")(data)
                                 else:
                                     output[attr.get("name")] = data
