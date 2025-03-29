@@ -146,16 +146,17 @@ def generate_languages(userCoordinator) -> list[DuolingoEntityDescription]:
     languages_details = userCoordinator.get("languages_details", {})
     generated = []
     for key, value in languages_details.items():
-        if key.endswith("language"):
+        if key.endswith("id"):
             langKey = value
             langString = languages_details.get(f'{langKey}.language_string', langKey)
+            langFrom = languages_details.get(f'{langKey}.from', "??")
 
             generated.append(
                 DuolingoEntityDescription(
                     key="languages_details",
-                    name=f'Language {langString.capitalize()}',
+                    name=f'Language {langString.capitalize()} ({langFrom})',
                     state=f'{langKey}.points',
-                    attrs=(lambda lang: (lambda x: {k: x.get(f'{lang}.{k}') for k in ["language_string", "points", "language", "level", "current_learning"] if x.get(f'{lang}.{k}')}))(langKey),
+                    attrs=(lambda lang: (lambda x: {k: x.get(f'{lang}.{k}') for k in ["language_string", "points", "language", "from", "current_learning", "id"] if x.get(f'{lang}.{k}')}))(langKey),
                     icon="mdi:flag",
                     unit="XP",
                     entity_category=EntityCategory.DIAGNOSTIC

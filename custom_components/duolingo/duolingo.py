@@ -395,9 +395,16 @@ class Duolingo(object):
     def get_languages_details(self):
         """Get user's status about languages"""
         output = {}
+        items = {
+            "title": "language_string",
+            "xp": "points",
+            "learningLanguage": "language",
+            "fromLanguage": "from",
+            "placementTestAvailable": "current_learning",
+        }
         for lang in self.get_languages():
             if lang.get("title") and lang.get("learningLanguage"):
-                output[lang["learningLanguage"]] = self.get_language_details(language=lang['title'])
+                output[lang["id"]] = {**{items[k]:v for k, v in lang.items() if k in items.keys()}, "id": lang["id"]}
         return output
 
     def get_language_details(self, language):
