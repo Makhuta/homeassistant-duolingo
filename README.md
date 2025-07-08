@@ -1,3 +1,13 @@
+
+[![HACS badge][hacs-badge-shield]][hacs-badge-url]
+[![Contributors][contributors-shield]][contributors-url]
+[![Release][release-shield]][release-url]
+[![Release date][release-date-shield]][release-date-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Downloads][downloads-shield]][downloads-url]
+[![Issues][issues-shield]][issues-url]
+
 # Data scraper for Duolingo
 Adds multiple sensors with information/statistics grabbed from Duolingo account
 
@@ -56,3 +66,34 @@ Inside the Console is your unique JWT token, you can copy it and use it in HomeA
 
 2. If you are unable to paste into your browser console (the command for getting the Duolingo token) type <code>allow pasting</code> into the console and press Enter, after that you should be able to paste the command.
 
+
+### Top contributors:
+
+<a href="https://github.com/Makhuta/homeassistant-duolingo/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Makhuta/homeassistant-duolingo" alt="contrib.rocks image" />
+</a>
+
+
+[hacs-badge-shield]: https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge
+[hacs-badge-url]: https://github.com/hacs/integration
+
+[contributors-shield]: https://img.shields.io/github/contributors/Makhuta/homeassistant-duolingo.svg?style=for-the-badge
+[contributors-url]: https://github.com/Makhuta/homeassistant-duolingo/graphs/contributors
+
+[release-shield]: https://img.shields.io/github/release/Makhuta/homeassistant-duolingo.svg?style=for-the-badge
+[release-url]: https://github.com/Makhuta/homeassistant-duolingo/releases/latest
+
+[release-date-shield]: https://img.shields.io/github/release-date/Makhuta/homeassistant-duolingo.svg?style=for-the-badge
+[release-date-url]: https://github.com/Makhuta/homeassistant-duolingo/releases/latest
+
+[downloads-shield]: https://img.shields.io/github/downloads/Makhuta/homeassistant-duolingo/total.svg?style=for-the-badge
+[downloads-url]: https://github.com/Makhuta/homeassistant-duolingo/releases/latest
+
+[forks-shield]: https://img.shields.io/github/forks/Makhuta/homeassistant-duolingo.svg?style=for-the-badge
+[forks-url]: https://github.com/Makhuta/homeassistant-duolingo/network/members
+
+[stars-shield]: https://img.shields.io/github/stars/Makhuta/homeassistant-duolingo.svg?style=for-the-badge
+[stars-url]: https://github.com/Makhuta/homeassistant-duolingo/stargazers
+
+[issues-shield]: https://img.shields.io/github/issues/Makhuta/homeassistant-duolingo.svg?style=for-the-badge
+[issues-url]: https://github.com/Makhuta/homeassistant-duolingo/issues
