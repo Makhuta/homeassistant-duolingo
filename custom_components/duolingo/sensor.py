@@ -61,6 +61,14 @@ SENSORS: list[DuolingoEntityDescription | Callable] = [
         unit="XP"
     ),
     DuolingoEntityDescription(
+        key="user_info",
+        name="Gems",
+        state="gems",
+        icon="mdi:diamond",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        unit="Gems"
+    ),
+    DuolingoEntityDescription(
         key="leaderboard",
         name="Leaderboard",
         state="position",
