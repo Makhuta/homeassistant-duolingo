@@ -886,9 +886,18 @@ class Duolingo(object):
             return out
 
         friend_quest = {}
+        quests_names_dict = {
+            "xp_friends_quest": {"name": "XP collection", "unit": "XP"},
+            "lessons_friends_quest": {"name": "Lessons", "unit": ""},
+            "ninety_accuracy_lessons_friends_quest": {"name": ">=90% lessons", "unit": ""},
+            "perfect_lessons_friends_quest": {"name": "Perfect lessons", "unit": ""},
+        }
         for quest in quests:
             state = quest.get("questState", "")
             friend_quest["id"] = quest.get("goalId", "unknown")
+            decoded_quest = quests_names_dict.get(friend_quest["id"], {"name": f"{friend_quest["id"]}", "unit": ""})
+            friend_quest["name"] = decoded_quest.get("name")
+            friend_quest["unit"] = decoded_quest.get("unit")
             friend_quest["threshold"] = quest.get("questThreshold", 0)
             friend_quest["active"] = state == "ACTIVE"
             friend_quest["state"] = state.replace("_", " ").capitalize()
@@ -897,6 +906,11 @@ class Duolingo(object):
                 "id": None,
                 "name": "unknown",
                 "avatar": None
+            }
+            friend_quest["you"] = {
+                "id": f"{self.user_id}",
+                "name": self.username,
+                "avatar": f'https:{self.user_data.get("avatar", "//simg-ssl.duolingo.com/avatar/default_2")}/large'
             }
             users = quest.get("otherQuestParticipants", [])
             if len(users) != 0:
