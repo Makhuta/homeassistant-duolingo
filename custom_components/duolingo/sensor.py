@@ -72,7 +72,7 @@ SENSORS: list[DuolingoEntityDescription | Callable] = [
         key="leaderboard",
         name="Leaderboard",
         state="position",
-        attrs=lambda x: {(id + 1): {camel_to_snake(key): value for key, value in x.get("board")[id].items() if key in ["display_name", "has_plus", "has_recent_activity_15", "score", "streak_extended_today", "user_id"]} for id in range(len(x.get("board")))},
+        attrs=lambda x: {(id + 1): {camel_to_snake(key): value for key, value in x.get("board")[id].items() if key in ["display_name", "has_plus", "has_recent_activity_15", "score", "streak_extended_today", "user_id", "avatar_url"]} for id in range(len(x.get("board")))},
         icon="mdi:bulletin-board",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
