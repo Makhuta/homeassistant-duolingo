@@ -52,6 +52,7 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
         self._attrs = {}
 
     def _get_user_data(self) -> DataObject:
+        return self.coordinator.data.get(self._username)
         return DataObject({**self.coordinator.data[self._username]}) if self.coordinator.data.get(self._username) else DataObject()
 
     @property
@@ -75,7 +76,7 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
                         if type(self._description.icon_switch) == str:
                             return self._description.icon[0 if sensor_category.get(self._description.icon_switch) else 1]
                         if type(self._description.icon_switch) == functionType:
-                            return self._description.icon[0 if self._description.icon_switch(sensor_category.get()) else 1]
+                            return self._description.icon[0 if self._description.icon_switch(sensor_category) else 1]
 
             return None
         
@@ -91,8 +92,9 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
         return {
             "name": self._username,
             "manufacturer": "Duolingo",
-            "model": "Scraper",
+            "model": "Scrapper",
             "identifiers": {(DOMAIN, f'{self._jwt}_Duolingo_{self._username}')},
+            "configuration_url": self._attrs.get("entity_picture"),
         }
 
     def update_state(self):
@@ -104,9 +106,9 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
                     if type(self._description.state) == str:
                         self._state = sensor_category.get(self._description.state)
                     if type(self._description.state) == functionType:
-                        self._state =  self._description.state(sensor_category.get())
+                        self._state = self._description.state(sensor_category)
         except Exception as e:
-            _LOGGER.err(e)
+            _LOGGER.error(e)
 
     @property
     def state(self) -> Optional[str]:
@@ -133,18 +135,20 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
                                 if "value" in list(attr.keys()):
                                     if attr.get('name') == 'avatar':
                                         # Set the entity_picture attribute for use with entity badge and similar Lovelace cards
+                                        # FIXME: Should this completely replace the avatar as an if/else statement?
+                                        #        Would need to co-ordinate such a change with https://github.com/Makhuta/lovelace-duolingo-card
                                         output['entity_picture'] = attr.get('value')(data)
                                     output[attr.get("name")] = attr.get("value")(data)
                                 else:
                                     output[attr.get("name")] = data
                         self._attrs = output
                     if type(attrs) == functionType:
-                        self._attrs = attrs(sensor_category.get())
+                        self._attrs = attrs(sensor_category)
         except Exception as e:
-            _LOGGER.err(e)
+            _LOGGER.error(e)
 
     @property
-    def extra_state_attributes(self) -> Dict[str, Any]:
+    def extra_state_attributes(self) -> Dict[str, Any] | None:
         self.update_attributes()
         return sanitize_dict(self._attrs)
 
@@ -164,6 +168,7 @@ class DuolingoLeaderboardSensor(CoordinatorEntity[DuolingoDataCoordinator], Sens
         self._data = []
 
     def _get_users_data(self) -> list:
+        return [{"data": self.coordinator.data.get(username), "username": username} for username in self._usernames]
         return [DataObject({**self.coordinator.data[username], "username": username}) if self.coordinator.data.get(username) else DataObject() for username in self._usernames]
 
     @property
@@ -190,7 +195,7 @@ class DuolingoLeaderboardSensor(CoordinatorEntity[DuolingoDataCoordinator], Sens
         return {
             "name": "Leaderboard",
             "manufacturer": "Duolingo",
-            "model": "Scraper",
+            "model": "Scrapper",
             "identifiers": {(DOMAIN, f'{self._jwt}_Duolingo_Leaderboard')},
         }
 
@@ -199,20 +204,20 @@ class DuolingoLeaderboardSensor(CoordinatorEntity[DuolingoDataCoordinator], Sens
             users_data = self._get_users_data()
             out_datas = []
             for user_data in users_data:
-                category = user_data.get(self._description.key)
-                username = user_data.get("username")
-                avatar = "https:" + str(user_data.get("user_info").get("avatar")) + "/large" if user_data.get("user_info") is not None else None
-                fullname = user_data.get("user_info").get("fullname") if user_data.get("user_info") is not None else None
+                category = user_data.get("data", {}).get(self._description.key)
+                username = user_data.get("data", {}).get("username")
                 if category is None:
                     continue
-                leaderboard = user_data.get("leaderboard")
-                is_main = leaderboard is not None and leaderboard.get("position") is not None
+                avatar = category.get("avatar")
+                fullname = category.get("fullname") if user_data.get("data", {}).get("user_info") != "?" else None
+                leaderboard = user_data.get("data", {}).get("leaderboard_data")
+                is_main = leaderboard is not None and leaderboard.get("position") is not None and leaderboard.get("position") > 0
                 state = {}
                 if type(self._description.state) == str:
                     state = { "username": username, "fullname": fullname, "xp": category.get(self._description.state), "avatar": avatar, "is_main": is_main}
                 if type(self._description.state) == functionType:
-                    state = { "username": username, "fullname": fullname, "xp": self._description.state(category.get()), "avatar": avatar, "is_main": is_main}
-
+                    state = { "username": username, "fullname": fullname, "xp": self._description.state(category), "avatar": avatar, "is_main": is_main}
+                        
                 out_datas.append(state)
 
             attrs = {}
@@ -223,7 +228,7 @@ class DuolingoLeaderboardSensor(CoordinatorEntity[DuolingoDataCoordinator], Sens
 
             self._attrs = attrs
         except Exception as e:
-            _LOGGER.err(e)
+            _LOGGER.error(e)
 
     @property
     def state(self) -> Optional[str]:
@@ -231,34 +236,7 @@ class DuolingoLeaderboardSensor(CoordinatorEntity[DuolingoDataCoordinator], Sens
         self.update()
         return self._state
 
-    def update_attributes(self):
-        try:
-            return
-            users_data = self._get_users_data()
-            if users_data:
-                attrs = self._description.attrs
-                sensor_category = users_data.get(self._description.key)
-                if sensor_category:
-                    if type(attrs) == str:
-                        self._attrs = sensor_category.get(attrs)
-                    if type(attrs) == list:
-                        output = {}
-                        for attr in attrs:
-                            data = sensor_category.get(attr.get("key"))
-                            if data:
-                                if not attr.get("name"):
-                                    continue
-                                if "value" in list(attr.keys()):
-                                    output[attr.get("name")] = attr.get("value")(data)
-                                else:
-                                    output[attr.get("name")] = data
-                        self._attrs = output
-                    if type(attrs) == functionType:
-                        self._attrs = attrs(sensor_category.get())
-        except Exception as e:
-            _LOGGER.err(e)
-
     @property
-    def extra_state_attributes(self) -> Dict[str, Any]:
+    def extra_state_attributes(self) -> Dict[str, Any] | None:
         self.update()
         return sanitize_dict(self._attrs)
