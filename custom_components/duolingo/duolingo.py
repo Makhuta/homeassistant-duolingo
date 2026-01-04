@@ -252,7 +252,7 @@ class DuolingoUserData(DuolingoBase):
         today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
         output = {}
         for day in range(0, 7):
-            dt = today.replace(day=today.day-day)
+            dt = today-timedelta(days=day)
             midnight = datetime.fromordinal(dt.date().toordinal())
             output[f"{dt.strftime('%d.%m.%Y')}"] = self.lessons_on(midnight)
         return output
