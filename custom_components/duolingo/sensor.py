@@ -130,7 +130,7 @@ SENSORS: list[DuolingoEntityDescription | Callable] = [
         name="Today XP",
         state="xp",
         attrs="xp_week",
-        icon=("mdi:fire-off", "mdi:fire"),
+        icon=("mdi:fire", "mdi:fire-off"),
         icon_switch=lambda x: x.get("xp") >= x.get("xp_goal"),
         entity_category=EntityCategory.DIAGNOSTIC,
         unit="XP",

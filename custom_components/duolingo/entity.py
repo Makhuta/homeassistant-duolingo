@@ -27,7 +27,7 @@ class DuolingoEntityDescription():
         state: str | Callable | None = None,
         attrs: str | Callable | list | None = None,
         icon: str | tuple | None = None,
-        icon_switch: str | None = None,
+        icon_switch: str | Callable | None = None,
         unit: str | None = None,
         entity_category: EntityCategory | None = None
     ):
