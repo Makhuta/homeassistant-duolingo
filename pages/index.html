@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>How to obtain JWT token</title>
+<style>
+:root {
+  --color-light: #e0e0e0;
+  --color-green: #58cc02;
+  --color-dark: #121212;
+  --color-darker: #1e1e1e;
+  --color-darkest: #2a2a2a;
+}
+
+/* General body */
+body {
+    font-family: "Segoe UI", Roboto, sans-serif;
+    background: var(--color-dark);
+    color: var(--color-light);
+    line-height: 1.6;
+    margin: 20px;
+}
+
+/* Tab bar container */
+.tab-buttons {
+    display: flex;
+    margin-bottom: 0;
+}
+
+/* Individual tabs */
+.tab-buttons button {
+    padding: 10px 18px;
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: var(--color-darker);
+    color: #c0c0c0;
+    font-weight: 600;
+    margin-right: 4px;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.2s;
+}
+
+/* Active tab */
+.tab-buttons button.active {
+    background: var(--color-dark);
+    color: var(--color-green);
+    border-bottom: 3px solid var(--color-green);
+}
+
+/* Hover inactive tab */
+.tab-buttons button:hover:not(.active) {
+    background: var(--color-darkest);
+}
+
+/* Tab content */
+.tab-content {
+    border: 1px solid var(--color-darkest);
+    border-top: none;
+    padding: 20px;
+    background: var(--color-darker);
+    display: none;
+    border-radius: 0 8px 8px 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+/* Show active tab content */
+.tab-content.active {
+    display: block;
+}
+
+/* Step container: flex layout */
+.step-flex {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+/* List in step */
+.step-flex ol {
+    max-width: 60%;
+    padding-left: 20px;
+    flex: 0 0 auto;
+}
+
+/* Images in step */
+.step-flex img {
+    max-width: 40%; /* remaining space */
+    flex: 1 1 auto;
+    border-radius: 6px;
+    display: block;
+    margin: 0;
+}
+
+/* Headings in content */
+.tab-content h2 {
+    color: var(--color-green);
+    margin-top: 0;
+}
+
+/* Responsive: stack on small screens */
+@media (max-width: 600px) {
+    .step-flex {
+        flex-direction: column;
+    }
+    .step-flex ol, .step-flex img {
+        max-width: 100%;
+    }
+}
+</style>
+</head>
+<body>
+
+<h1>How to obtain JWT token</h1>
+
+<!-- Main Tabs -->
+<div class="tab-buttons">
+    <button data-tab="chrome" class="active">Chrome</button>
+    <button data-tab="opera">Opera</button>
+</div>
+
+<!-- Step 1 -->
+<h2>Step 1: Log-in to Duolingo</h2>
+<div class="tab-content chrome active">
+    <div class="step-flex">
+        <img src="images/chrome/step1.png" alt="Chrome Step 1">
+    </div>
+</div>
+<div class="tab-content opera">
+    <div class="step-flex">
+        <img src="images/opera/step1.png" alt="Opera Step 1">
+    </div>
+</div>
+
+<!-- Step 2 -->
+<h2>Step 2: Open <b>Developer tools</b></h2>
+<div class="tab-content chrome active">
+    <div class="step-flex">
+        <img src="images/chrome/step2.png" alt="Chrome Step 2">
+        <ol>
+            <li>Right click anywhere on the page</li>
+            <li>Table should appear</li>
+            <li>Select <b>Inspect</b> and click on it</li>
+        </ol>
+    </div>
+</div>
+<div class="tab-content opera">
+    <div class="step-flex">
+        <img src="images/opera/step2.png" alt="Opera Step 2">
+        <ol>
+            <li>Right click anywhere on the page</li>
+            <li>Table should appear</li>
+            <li>Select <b>Inspect</b> and click on it</li>
+        </ol>
+    </div>
+</div>
+
+<!-- Step 3 -->
+<h2>Step 3: Change tab in <b>Developer tools</b></h2>
+<div class="tab-content chrome active">
+    <!-- Nested tabs -->
+    <div class="tab-buttons nested">
+        <button data-tab="console" class="active">Console</button>
+        <button data-tab="cookies">Cookies</button>
+    </div>
+    <!-- Nested tab content -->
+    <div class="tab-content nested console active">
+        <div class="step-flex">
+            <img src="images/chrome/step3_console.png" alt="Chrome Step 3 Console">
+            <ol>
+                <li>Change to Console tab</li>
+            </ol>
+        </div>
+    </div>
+    <div class="tab-content nested cookies">
+        <div class="step-flex">
+            <img src="images/chrome/step3_cookies.png" alt="Chrome Step 3 Cookies">
+            <ol>
+                <li>Change to Application tab</li>
+            </ol>
+        </div>
+    </div>
+</div>
+<div class="tab-content opera">
+    <div class="tab-buttons nested">
+        <button data-tab="console" class="active">Console</button>
+        <button data-tab="cookies">Cookies</button>
+    </div>
+    <div class="tab-content nested console active">
+        <div class="step-flex">
+            <img src="images/opera/step3_console.png" alt="Opera Step 3 Console">
+            <ol>
+                <li>Change to Console tab</li>
+            </ol>
+        </div>
+    </div>
+    <div class="tab-content nested cookies">
+        <div class="step-flex">
+            <img src="images/opera/step3_cookies.png" alt="Opera Step 3 Cookies">
+            <ol>
+                <li>Change to Application tab</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<!-- Step 4 -->
+<h2>Step 4: Use the JWT token</h2>
+<div class="tab-content chrome active">
+    <div class="tab-buttons nested">
+        <button data-tab="console" class="active">Console</button>
+        <button data-tab="cookies">Cookies</button>
+    </div>
+    <div class="tab-content nested console active">
+        <div class="step-flex">
+            <img src="images/chrome/step4_console.png" alt="Chrome Step 4 Console">
+            <ol>
+                <li>Copy code from <a href="https://github.com/Makhuta/homeassistant-duolingo/blob/main/README.md#jwt-token-get-code" style="color: var(--color-light);">README.md</a></li>
+                <li>Paste the code into the console</li>
+                <li>Press Enter</li>
+                <li>Copy the returned JWT token</li>
+            </ol>
+        </div>
+    </div>
+    <div class="tab-content nested cookies">
+        <div class="step-flex">
+            <img src="images/chrome/step4_cookies.png" alt="Chrome Step 4 Cookies">
+            <ol>
+                <li>Find section <b>Storage</b></li>
+                <li>Find section <b>Cookies</b> and open it</li>
+                <li>Find address for Duolingo (https://www.duolingo.com) and click on it</li>
+                <li>You will see multiple cookies, find and select one called "<b>jwt_token</b>" and click on it</li>
+                <li>Under the table (<b>Cookie value</b>) you will see your JWT token, you can Copy it and use in HomeAssistant</li>
+            </ol>
+        </div>
+    </div>
+</div>
+<div class="tab-content opera">
+    <div class="tab-buttons nested">
+        <button data-tab="console" class="active">Console</button>
+        <button data-tab="cookies">Cookies</button>
+    </div>
+    <div class="tab-content nested console active">
+        <div class="step-flex">
+            <img src="images/opera/step4_console.png" alt="Opera Step 4 Console">
+            <ol>
+                <li>Copy code from <a href="https://github.com/Makhuta/homeassistant-duolingo/blob/main/README.md#jwt-token-get-code" style="color: var(--color-light);">README.md</a></li>
+                <li>Paste the code into the console</li>
+                <li>Press Enter</li>
+                <li>Copy the returned JWT token</li>
+            </ol>
+        </div>
+    </div>
+    <div class="tab-content nested cookies">
+        <div class="step-flex">
+            <img src="images/opera/step4_cookies.png" alt="Opera Step 4 Cookies">
+            <ol>
+                <li>Find section <b>Storage</b></li>
+                <li>Find section <b>Cookies</b> and open it</li>
+                <li>Find address for Duolingo (https://www.duolingo.com) and click on it</li>
+                <li>You will see multiple cookies, find and select one called "<b>jwt_token</b>" and click on it</li>
+                <li>Under the table (<b>Cookie value</b>) you will see your JWT token, you can Copy it and use in HomeAssistant</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<script>
+// Main tab switching
+const buttons = document.querySelectorAll('.tab-buttons:not(.nested) button');
+const contents = document.querySelectorAll('.tab-content:not(.nested)');
+
+buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-tab');
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        contents.forEach(c => {
+            if(c.classList.contains(tab)) c.classList.add('active');
+            else c.classList.remove('active');
+        });
+    });
+});
+
+// Nested tab switching
+const nestedButtons = document.querySelectorAll('.tab-buttons.nested button');
+nestedButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+
+        document.querySelectorAll('.tab-buttons.nested button').forEach(b => {
+            if (b.dataset.tab === tab) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+
+        document.querySelectorAll('.tab-content.nested').forEach(c => {
+            if (c.classList.contains(tab)) {
+                c.classList.add('active');
+            } else {
+                c.classList.remove('active');
+            }
+        });
+    });
+});
+</script>
+
+</body>
+</html>

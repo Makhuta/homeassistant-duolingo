@@ -50,11 +50,15 @@ The JWT token is unique per user and will be different based on for whom you wil
 
 Developer tools -> Go to the Console -> Insert the following command
 
+##### JWT Token get code
+
 ```javascript
 document.cookie.match(new RegExp('(^| )jwt_token=([^;]+)'))[0].slice(11)
 ```
 
 Inside the Console is your unique JWT token, you can copy it and use it in HomeAssistant.
+
+<small>More detailed tutorial for obtaining JWT token can be found [here](https://makhuta.github.io/homeassistant-duolingo)</small>
 
 ### Possible problems
 
