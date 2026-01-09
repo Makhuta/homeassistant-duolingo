@@ -563,13 +563,13 @@ class DuolingoQuestsData(DuolingoBase):
     def update(self, *args, **kwargs):
         old_data = self._data
         try:
-            self._data = {**self._get_data(), "last_update": self._make_latest_update_date()}
+            self._data = {"progress": self._get_data_progress(), "schema": self._get_data_schema(), "last_update": self._make_latest_update_date()}
         except:
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
 
-    def _get_data(self):
+    def _get_data_progress(self):
         """
-        Get user's quests data from ``https://goals-api.duolingo.com/users/<user_id>/progress``.
+        Get user's progress data from ``https://goals-api.duolingo.com/users/<user_id>/progress``.
         """
         headers = {
             'Accepts-Encoding': "gzip, deflate, br, zstd",
@@ -581,16 +581,37 @@ class DuolingoQuestsData(DuolingoBase):
         else:
             return get.json()
 
+    def _get_data_schema(self):
+        """
+        Get schema data from ``https://goals-api.duolingo.com/schema``.
+        """
+        headers = {
+            'Accepts-Encoding': "gzip, deflate, br, zstd",
+            'Accept': "application/json; charset=UTF-8"
+        }
+        get = self._make_req(f"https://goals-api.duolingo.com/schema", headers=headers, params={"timezone": datetime.now().astimezone().tzinfo, "ui_language": "en"}, android=True)
+        if get.status_code == 404:
+            raise Exception('Schema not found')
+        else:
+            return get.json()
+
     @property
     def monthly(self):
         try:
-            quests = self._data.get("goals", {}).get("details", {})
+            quests = self._data.get("progress", {}).get("goals", {}).get("details", {})
+            goals = self._data.get("schema", {}).get("goals", [])
             for key, quest in quests.items():
                 if key.endswith("monthly_challenge"):
+                    limit = len(quest.get("progressIncrements", [])) * 3
+                    for goal in goals:
+                        if goal.get("goalId") is not None and goal["goalId"] == key:
+                            if goal.get("threshold") is not None:
+                                limit = goal["threshold"]
+                            break
                     return {
                         "progress": quest.get("progress", -1),
                         "increments": quest.get("progressIncrements", []),
-                        "limit": len(quest.get("progressIncrements", [])) * 3   # theoretical, based on that every day you can complete max 3 quests (not counting friend quests)
+                        "limit": limit   # theoretical, based on that every day you can complete max 3 quests (not counting friend quests)
                     }
             raise Exception
         except:
@@ -603,7 +624,7 @@ class DuolingoQuestsData(DuolingoBase):
     @property
     def friends(self) -> dict:
         try:
-            quests = self._data.get("goals", {}).get("details", {})
+            quests = self._data.get("progress", {}).get("goals", {}).get("details", {})
             for key, quest in quests.items():
                 try:
                     friend_progress = quest.get("socialProgress", [])
