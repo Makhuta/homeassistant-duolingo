@@ -609,7 +609,7 @@ class DuolingoQuestsData(DuolingoBase):
                                 limit = goal["threshold"]
                             break
                     return {
-                        "progress": quest.get("progress", -1),
+                        "progress": min(quest.get("progress", -1), limit),  # using min to limit the progress so it is not greater than the limit value
                         "increments": quest.get("progressIncrements", []),
                         "limit": limit   # theoretical, based on that every day you can complete max 3 quests (not counting friend quests)
                     }
