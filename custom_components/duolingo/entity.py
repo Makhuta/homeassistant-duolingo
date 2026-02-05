@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional
 from collections.abc import Callable
 from dataclasses import dataclass
+from re import sub
 
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.core import HomeAssistant
@@ -46,7 +47,7 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
         self._username = username
         self._jwt = jwt
         self._description = description
-        self.entity_id = f'sensor.{username}_duolingo_{description.name.lower().replace(" ", "_")}'
+        self.entity_id = f'sensor.{self.sanitize_text(username.lower()).lstrip("_")}_duolingo_{self.sanitize_text(description.name.lower()).rstrip("_")}'
         self._attr_entity_category = description.entity_category
         self._state = None
         self._attrs = {}
@@ -152,6 +153,10 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
         self.update_attributes()
         return sanitize_dict(self._attrs)
 
+    
+    @staticmethod
+    def sanitize_text(text:str = "") -> str:
+        return sub(r'[^a-z0-9_]+', '_', text)
 
 
 
