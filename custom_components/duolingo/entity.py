@@ -155,8 +155,17 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
 
     
     @staticmethod
-    def sanitize_text(text:str = "") -> str:
-        return sub(r'[^a-z0-9_]+', '_', text)
+    def sanitize_text(text: str = "") -> str:
+        text = text.lower()
+        text = sub(r'[^a-z0-9_]+', '_', text)
+        text = sub(r'^[^a-z]+', '', text)
+        text = sub(r'_+', '_', text)
+
+        # Fallback if empty
+        if not text:
+            text = "unnamed"
+
+        return text
 
 
 
