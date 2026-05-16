@@ -152,6 +152,7 @@ SENSORS: list[DuolingoEntityDescription | Callable] = [
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     lambda userCoordinator: generate_languages(userCoordinator),
+    lambda userCoordinator: generate_language_scores(userCoordinator),
     lambda userCoordinator: generate_friend_streaks(userCoordinator),
 ]
 
@@ -170,6 +171,16 @@ def process_friend_quest(x):
         "friend_xp": q.get("friend", {}).get("xp"),
     }
 
+def cefr_label(score):
+    if score is None:
+        return None
+    if score < 10:  return "Pre-A1"
+    if score < 30:  return "A1"
+    if score < 60:  return "A2"
+    if score < 90:  return "B1"
+    if score < 120: return "B2"
+    return "C1"
+
 def generate_languages(userCoordinator) -> list[DuolingoEntityDescription]:
     generated = []
     for course in userCoordinator.get("user_data", {}).get("courses", []):
@@ -185,6 +196,31 @@ def generate_languages(userCoordinator) -> list[DuolingoEntityDescription]:
                 icon="mdi:flag",
                 unit="XP",
                 entity_category=EntityCategory.DIAGNOSTIC
+            )
+        )
+    return generated
+
+def generate_language_scores(userCoordinator) -> list[DuolingoEntityDescription]:
+    generated = []
+    for course in userCoordinator.get("user_data", {}).get("courses", []):
+        id = course.get("id")
+        if id is None:
+            continue
+        generated.append(
+            DuolingoEntityDescription(
+                key="user_data",
+                name=f'Language Score {course.get("name")} ({course.get("from")})',
+                state=lambda x, id=id: get_by_item(x.get("courses", []), "id", id, {}).get("score"),
+                attrs=lambda x, id=id: {
+                    k: v for k, v in {
+                        "score": get_by_item(x.get("courses", []), "id", id, {}).get("score"),
+                        "cefr": cefr_label(get_by_item(x.get("courses", []), "id", id, {}).get("score")),
+                        "language": get_by_item(x.get("courses", []), "id", id, {}).get("language"),
+                        "course": get_by_item(x.get("courses", []), "id", id, {}).get("name"),
+                    }.items() if v is not None
+                },
+                icon="mdi:certificate-outline",
+                entity_category=EntityCategory.DIAGNOSTIC,
             )
         )
     return generated

@@ -157,15 +157,22 @@ class DuolingoUserData(DuolingoBase):
     def courses(self) -> list[dict]:
         try:
             output = []
-            for course in self._data.get("by_id", {}).get("courses", []):
+            by_id = self._data.get("by_id", {})
+            current = by_id.get("currentCourse", {})
+            current_lang = current.get("learningLanguage") or current.get("topic")
+            current_score = current.get("scoreMetadata", {}).get("reachedScore")
+
+            for course in by_id.get("courses", []):
                 if not all(k in course.keys() for k in ["title", "learningLanguage", "xp", "fromLanguage", "id"]):
                     continue
+                lang = course["learningLanguage"]
                 output.append({
                     "name": course["title"],
-                    "language": course["learningLanguage"],
+                    "language": lang,
                     "from": course["fromLanguage"],
                     "xp": course["xp"],
                     "id": course["id"],
+                    "score": current_score if lang == current_lang else None,
                 })
             return output
         except:
