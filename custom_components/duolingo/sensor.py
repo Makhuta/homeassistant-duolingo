@@ -177,9 +177,9 @@ def cefr_label(score):
     if score < 10:  return "Pre-A1"
     if score < 30:  return "A1"
     if score < 60:  return "A2"
-    if score < 90:  return "B1"
-    if score < 120: return "B2"
-    return "C1"
+    if score < 100: return "B1"
+    if score < 130: return "B2"
+    return "C1-C2"
 
 def generate_languages(userCoordinator) -> list[DuolingoEntityDescription]:
     generated = []
