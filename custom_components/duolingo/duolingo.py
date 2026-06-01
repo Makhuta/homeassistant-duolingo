@@ -134,31 +134,35 @@ class DuolingoUserData(DuolingoBase):
         try:
             by_username = self._get_data(self.username)
             by_id = self._get_data_by_id(by_username.get("id"))
-            learning_lang_id = by_id.get("currentCourseId")
-            learning_lang_abbr = by_id.get("learningLanguage")
-            if learning_lang_id is not None and learning_lang_abbr is not None:
-                full_by_id = self._update_data_from_different_courses(by_id)
-                switched_data = self.switch_language(by_username.get("id"), learning_lang_id, learning_lang_abbr, ["currentCourse"])
-                for out_course_id in range(len(full_by_id.get("courses", []))):
-                    out_course = full_by_id["courses"][out_course_id]
-                    if out_course.get("fromLanguage") == learning_lang_abbr and out_course.get("id") == learning_lang_id and switched_data:
-                        full_by_id["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
-            else:
-                full_by_id = by_id
-            self._data = {"by_username": by_username, "by_id": full_by_id, "last_update": self._make_latest_update_date()}
-        except:
+            course_custom_data = self._get_course_custom_data(by_id)
+            for course_index in range(len(by_id.get("courses", []))):
+                course_id = by_id["courses"][course_index]["id"]
+                for key, value in course_custom_data.get(course_id, {}).items():
+                    by_id["courses"][course_index][key] = value
+            self._data = {"by_username": by_username, "by_id": by_id, "last_update": self._make_latest_update_date()}
+        except Exception as e:
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
 
-    def _update_data_from_different_courses(self, initial_data):
-        out = initial_data.copy()
+    def _get_course_custom_data(self, initial_data):
+        user_id = initial_data.get("id")
+        learning_lang_id = initial_data.get("currentCourseId")
+        learning_lang_abbr = initial_data.get("learningLanguage")
+        if user_id is None or learning_lang_id is None or learning_lang_abbr is None:
+            return {}
+        
+        out = {}
         for data in initial_data.get("courses", []):
             if "id" not in data.keys() or "fromLanguage" not in data.keys():
                 continue
-            switched_data = self.switch_language(initial_data.get("id"), data["id"], data["fromLanguage"], ["currentCourse"])
-            for out_course_id in range(len(out.get("courses", []))):
-                out_course = out["courses"][out_course_id]
-                if out_course.get("fromLanguage") == data["fromLanguage"] and out_course.get("id") == data["id"] and switched_data:
-                    out["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
+            switched_data = self.switch_language(user_id, data["id"], data["fromLanguage"], ["currentCourse"])
+            if out.get(data["id"]) is None:
+                out[data["id"]] = {}
+            out[data["id"]]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
+        
+        switched_data = self.switch_language(user_id, learning_lang_id, learning_lang_abbr, ["currentCourse"])
+        if out.get(learning_lang_id) is None:
+            out[learning_lang_id] = {}
+        out[learning_lang_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
         return out
 
     def _get_data(self, username=None):
