@@ -146,13 +146,15 @@ class DuolingoUserData(DuolingoBase):
     def _get_course_custom_data(self, initial_data):
         user_id = initial_data.get("id")
         learning_lang_id = initial_data.get("currentCourseId")
-        learning_lang_abbr = initial_data.get("learningLanguage")
+        learning_lang_abbr = initial_data.get("fromLanguage")
         if user_id is None or learning_lang_id is None or learning_lang_abbr is None:
             return {}
         
         out = {}
         for data in initial_data.get("courses", []):
             if "id" not in data.keys() or "fromLanguage" not in data.keys():
+                continue
+            if data["id"] == learning_lang_id:
                 continue
             switched_data = self.switch_language(user_id, data["id"], data["fromLanguage"], ["currentCourse"])
             if out.get(data["id"]) is None:
@@ -825,7 +827,6 @@ class Duolingo(Base):
             raise DuolingoException("Password, jwt, or session_file must be specified in order to authenticate.")
         
         self.user_data = DuolingoUserData(self.username, self.password, self.jwt)
-        self.user_data.update()
         self.leaderboard_data = DuolingoLeaderboardData(self.username, self.password, self.jwt, user_id=self.user_data.user_id)
         self.friends_data = DuolingoFriendsData(self.username, self.password, self.jwt, user_id=self.user_data.user_id)
         self.friend_streaks_data = DuolingoFriendStreaksData(self.username, self.password, self.jwt, user_id=self.user_data.user_id)
