@@ -59,7 +59,7 @@ class Base:
 
         headers['User-Agent'] = self.USER_AGENT(android)
         if not method:
-            method = 'POST' if data else 'GET'
+            method = 'POST' or 'PATCH' if data else 'GET'
         req = requests.Request(method,
                                url,
                                json=data,
@@ -103,6 +103,22 @@ class DuolingoBase(Base):
                 return default
 
         return self._data.get(key, default)
+        
+    def switch_language(self, user_id=None, course_id=None, from_lang=None, fields=None):
+        """
+        Change the learned language with ``https://www.duolingo.com/2023-05-23/users/<user_id>``.
+        """
+        if user_id is None or course_id is None or from_lang is None:
+            return False
+        data = {"signal": None, "currentCourseId": course_id, "fromLanguage": from_lang}
+        url = f"https://www.duolingo.com/2023-05-23/users/{user_id}{'?fields=' + ','.join(fields) if fields is not None else ''}"
+        request = self._make_req(url, data, method='PATCH')
+
+        try:
+            parse = request.json()
+            return parse
+        except ValueError:
+            raise DuolingoException('Failed to switch language')
 
 class DuolingoUserData(DuolingoBase):
     def __init__(self, username, password=None, jwt=None, *args, **kwargs):
@@ -117,9 +133,33 @@ class DuolingoUserData(DuolingoBase):
         old_data = self._data
         try:
             by_username = self._get_data(self.username)
-            self._data = {"by_username": by_username, "by_id": self._get_data_by_id(by_username.get("id")), "last_update": self._make_latest_update_date()}
+            by_id = self._get_data_by_id(by_username.get("id"))
+            learning_lang_id = by_id.get("currentCourseId")
+            learning_lang_abbr = by_id.get("learningLanguage")
+            if learning_lang_id is not None and learning_lang_abbr is not None:
+                full_by_id = self._update_data_from_different_courses(by_id)
+                switched_data = self.switch_language(by_username.get("id"), learning_lang_id, learning_lang_abbr, ["currentCourse"])
+                for out_course_id in range(len(full_by_id.get("courses", []))):
+                    out_course = full_by_id["courses"][out_course_id]
+                    if out_course.get("fromLanguage") == learning_lang_abbr and out_course.get("id") == learning_lang_id and switched_data:
+                        full_by_id["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
+            else:
+                full_by_id = by_id
+            self._data = {"by_username": by_username, "by_id": full_by_id, "last_update": self._make_latest_update_date()}
         except:
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
+
+    def _update_data_from_different_courses(self, initial_data):
+        out = initial_data.copy()
+        for data in initial_data.get("courses", []):
+            if "id" not in data.keys() or "fromLanguage" not in data.keys():
+                continue
+            switched_data = self.switch_language(initial_data.get("id"), data["id"], data["fromLanguage"], ["currentCourse"])
+            for out_course_id in range(len(out.get("courses", []))):
+                out_course = out["courses"][out_course_id]
+                if out_course.get("fromLanguage") == data["fromLanguage"] and out_course.get("id") == data["id"] and switched_data:
+                    out["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
+        return out
 
     def _get_data(self, username=None):
         """
@@ -157,22 +197,16 @@ class DuolingoUserData(DuolingoBase):
     def courses(self) -> list[dict]:
         try:
             output = []
-            by_id = self._data.get("by_id", {})
-            current = by_id.get("currentCourse", {})
-            current_lang = current.get("learningLanguage") or current.get("topic")
-            current_score = current.get("scoreMetadata", {}).get("reachedScore")
-
-            for course in by_id.get("courses", []):
+            for course in self._data.get("by_id", {}).get("courses", []):
                 if not all(k in course.keys() for k in ["title", "learningLanguage", "xp", "fromLanguage", "id"]):
                     continue
-                lang = course["learningLanguage"]
                 output.append({
                     "name": course["title"],
-                    "language": lang,
+                    "language": course["learningLanguage"],
                     "from": course["fromLanguage"],
                     "xp": course["xp"],
                     "id": course["id"],
-                    "score": current_score if lang == current_lang else None,
+                    "score": course.get("cefrScore"),
                 })
             return output
         except:

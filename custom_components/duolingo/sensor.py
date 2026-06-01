@@ -216,6 +216,7 @@ def generate_language_scores(userCoordinator) -> list[DuolingoEntityDescription]
                         "score": get_by_item(x.get("courses", []), "id", id, {}).get("score"),
                         "cefr": cefr_label(get_by_item(x.get("courses", []), "id", id, {}).get("score")),
                         "language": get_by_item(x.get("courses", []), "id", id, {}).get("language"),
+                        "from": get_by_item(x.get("courses", []), "id", id, {}).get("from"),
                         "course": get_by_item(x.get("courses", []), "id", id, {}).get("name"),
                     }.items() if v is not None
                 },
