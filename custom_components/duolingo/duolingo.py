@@ -129,16 +129,17 @@ class DuolingoUserData(DuolingoBase):
         """
         super().__init__(username, password, jwt, *args, **kwargs)
     
-    def update(self, *args, **kwargs):
+    def update(self, initial=False, *args, **kwargs):
         old_data = self._data
         try:
             by_username = self._get_data(self.username)
             by_id = self._get_data_by_id(by_username.get("id"))
-            course_custom_data = self._get_course_custom_data(by_id)
-            for course_index in range(len(by_id.get("courses", []))):
-                course_id = by_id["courses"][course_index]["id"]
-                for key, value in course_custom_data.get(course_id, {}).items():
-                    by_id["courses"][course_index][key] = value
+            if not initial:
+                course_custom_data = self._get_course_custom_data(by_id)
+                for course_index in range(len(by_id.get("courses", []))):
+                    course_id = by_id["courses"][course_index]["id"]
+                    for key, value in course_custom_data.get(course_id, {}).items():
+                        by_id["courses"][course_index][key] = value
             self._data = {"by_username": by_username, "by_id": by_id, "last_update": self._make_latest_update_date()}
         except Exception as e:
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
@@ -827,6 +828,7 @@ class Duolingo(Base):
             raise DuolingoException("Password, jwt, or session_file must be specified in order to authenticate.")
         
         self.user_data = DuolingoUserData(self.username, self.password, self.jwt)
+        self.user_data.update(True)
         self.leaderboard_data = DuolingoLeaderboardData(self.username, self.password, self.jwt, user_id=self.user_data.user_id)
         self.friends_data = DuolingoFriendsData(self.username, self.password, self.jwt, user_id=self.user_data.user_id)
         self.friend_streaks_data = DuolingoFriendStreaksData(self.username, self.password, self.jwt, user_id=self.user_data.user_id)
