@@ -37,7 +37,7 @@ class Base:
                            if x else \
                            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36"
 
-    def __init__(self, username, password=None, jwt=None, *args, **kwargs):
+    def __init__(self, username, password=None, jwt=None, start_on_monday=True, *args, **kwargs):
         """
         :param username: Username to use for duolingo
         :param password: Password to authenticate as user.
@@ -47,9 +47,10 @@ class Base:
         self.password = password
         self.session = requests.Session()
         self.jwt = jwt
+        self.start_on_monday = start_on_monday
 
     def _check_login(self):
-        resp = self._make_req(f"https://duolingo.com/users/{self.username}")
+        resp = self._make_req(f"https://www.duolingo.com/2017-06-30/friends/users?username={self.username}&searchType=USERNAME")
         return resp.status_code == 200
 
     def _make_req(self, url, data=None, params=None, method=None, headers = {}, android=False):
@@ -76,6 +77,12 @@ class Base:
 
     def _make_latest_update_date(self):
         return datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def validate_token(self):
+        try:
+            return self._check_login()
+        except:
+            return False
 
     def last_updated(self):
         return self._data["last_update"]
@@ -129,43 +136,38 @@ class DuolingoUserData(DuolingoBase):
         """
         super().__init__(username, password, jwt, *args, **kwargs)
     
-    def update(self, initial=False, *args, **kwargs):
+
+    
+    def update(self, *args, **kwargs):
         old_data = self._data
         try:
             by_username = self._get_data(self.username)
             by_id = self._get_data_by_id(by_username.get("id"))
-            if not initial:
-                course_custom_data = self._get_course_custom_data(by_id)
-                for course_index in range(len(by_id.get("courses", []))):
-                    course_id = by_id["courses"][course_index]["id"]
-                    for key, value in course_custom_data.get(course_id, {}).items():
-                        by_id["courses"][course_index][key] = value
-            self._data = {"by_username": by_username, "by_id": by_id, "last_update": self._make_latest_update_date()}
-        except Exception as e:
+            learning_lang_id = by_id.get("currentCourseId")
+            learning_lang_abbr = by_id.get("learningLanguage")
+            if learning_lang_id is not None and learning_lang_abbr is not None:
+                full_by_id = self._update_data_from_different_courses(by_id)
+                switched_data = self.switch_language(by_username.get("id"), learning_lang_id, learning_lang_abbr, ["currentCourse"])
+                for out_course_id in range(len(full_by_id.get("courses", []))):
+                    out_course = full_by_id["courses"][out_course_id]
+                    if out_course.get("fromLanguage") == learning_lang_abbr and out_course.get("id") == learning_lang_id and switched_data:
+                        full_by_id["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
+            else:
+                full_by_id = by_id
+            self._data = {"by_username": by_username, "by_id": full_by_id, "last_update": self._make_latest_update_date()}
+        except:
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
 
-    def _get_course_custom_data(self, initial_data):
-        user_id = initial_data.get("id")
-        learning_lang_id = initial_data.get("currentCourseId")
-        learning_lang_abbr = initial_data.get("fromLanguage")
-        if user_id is None or learning_lang_id is None or learning_lang_abbr is None:
-            return {}
-        
-        out = {}
+    def _update_data_from_different_courses(self, initial_data):
+        out = initial_data.copy()
         for data in initial_data.get("courses", []):
             if "id" not in data.keys() or "fromLanguage" not in data.keys():
                 continue
-            if data["id"] == learning_lang_id:
-                continue
-            switched_data = self.switch_language(user_id, data["id"], data["fromLanguage"], ["currentCourse"])
-            if out.get(data["id"]) is None:
-                out[data["id"]] = {}
-            out[data["id"]]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
-        
-        switched_data = self.switch_language(user_id, learning_lang_id, learning_lang_abbr, ["currentCourse"])
-        if out.get(learning_lang_id) is None:
-            out[learning_lang_id] = {}
-        out[learning_lang_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
+            switched_data = self.switch_language(initial_data.get("id"), data["id"], data["fromLanguage"], ["currentCourse"])
+            for out_course_id in range(len(out.get("courses", []))):
+                out_course = out["courses"][out_course_id]
+                if out_course.get("fromLanguage") == data["fromLanguage"] and out_course.get("id") == data["id"] and switched_data:
+                    out["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
         return out
 
     def _get_data(self, username=None):
@@ -183,7 +185,7 @@ class DuolingoUserData(DuolingoBase):
 
     def _get_data_by_id(self, user_id=None):
         """
-        Get user's data from ``https://www.duolingo.com/2017-06-30/users/<username>``.
+        Get user's data from ``https://www.duolingo.com/2017-06-30/users/<user_id>``.
         """
         if user_id is None:
             user_id = self.user_id
@@ -199,6 +201,28 @@ class DuolingoUserData(DuolingoBase):
     @property
     def user_id(self):
         return self._data.get("by_username", {}).get("id")
+
+    @property
+    def user_id_fast(self):
+        """
+        Get user's data from ``https://www.duolingo.com/2017-06-30/friends/users?username=<username>&searchType=USERNAME``.
+        """
+        if self.username is None:
+            raise Exception("Username is None")
+
+        get = self._make_req(f"https://www.duolingo.com/2017-06-30/friends/users?username={self.username}&searchType=USERNAME")
+        if get.status_code == 404:
+            raise Exception('User not found')
+
+        result = get.json()
+        for user in result.get("users", []):
+            user_username = user.get("username")
+            if user_username is not None and user_username == self.username:
+                if not("id" in user):
+                    raise Exception("User doesn't contain ID")
+
+                return user["id"]
+        
 
     @property
     def courses(self) -> list[dict]:
@@ -294,15 +318,31 @@ class DuolingoUserData(DuolingoBase):
     def lessons_today(self) -> list[dict]:
         midnight = datetime.fromordinal(datetime.today().replace(hour=0, minute=0, second=0, microsecond=0).date().toordinal())
         return self.lessons_on(midnight)
+    
+    @property
+    def week_dates(self) -> list[datetime]:
+        today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+        weekday = today.weekday()
+
+        if self.start_on_monday:
+            start_of_week = today - timedelta(days=weekday)
+        else:
+            start_of_week = today - timedelta(days=(weekday + 1) % 7)
+
+        return [start_of_week + timedelta(days=i) for i in range(7)]
+
+    @property
+    def week(self) -> list[str]:
+        return [dt.strftime('%d.%m.%Y') for dt in self.week_dates]
 
     @property
     def lessons_week(self) -> dict[str, list]:
-        today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
         output = {}
-        for day in range(0, 7):
-            dt = today-timedelta(days=day)
-            midnight = datetime.fromordinal(dt.date().toordinal())
-            output[f"{dt.strftime('%d.%m.%Y')}"] = self.lessons_on(midnight)
+
+        for dt in self.week_dates:
+            midnight = datetime(dt.year, dt.month, dt.day)
+            output[dt.strftime('%d.%m.%Y')] = self.lessons_on(midnight)
+
         return output
 
     @property
@@ -615,6 +655,10 @@ class DuolingoQuestsData(DuolingoBase):
         except:
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
 
+    @property
+    def _get_data_value(self):
+        return self._data
+
     def _get_data_progress(self):
         """
         Get user's progress data from ``https://goals-api.duolingo.com/users/<user_id>/progress``.
@@ -749,7 +793,7 @@ class DuolingoFriendStreaksData(DuolingoBase):
 
     def _get_data_matches(self, matches:list):
         """
-        Get user's quests data from ``https://www.duolingo.com/2017-06-30/friends/users/<user_id>/matches``.
+        Get user's quests data from ``https://www.duolingo.com/friends-streak/matches``.
         """
         get = self._make_req(f"https://www.duolingo.com/friends-streak/matches", params={"matchIds": ",".join(list(matches))})
         if get.status_code == 404:
@@ -828,11 +872,11 @@ class Duolingo(Base):
             raise DuolingoException("Password, jwt, or session_file must be specified in order to authenticate.")
         
         self.user_data = DuolingoUserData(self.username, self.password, self.jwt)
-        self.user_data.update(True)
-        self.leaderboard_data = DuolingoLeaderboardData(self.username, self.password, self.jwt, user_id=self.user_data.user_id)
-        self.friends_data = DuolingoFriendsData(self.username, self.password, self.jwt, user_id=self.user_data.user_id)
-        self.friend_streaks_data = DuolingoFriendStreaksData(self.username, self.password, self.jwt, user_id=self.user_data.user_id)
-        self.quest_data = DuolingoQuestsData(self.username, self.password, self.jwt, user_id=self.user_data.user_id)
+        user_id = self.user_data.user_id_fast
+        self.leaderboard_data = DuolingoLeaderboardData(self.username, self.password, self.jwt, user_id=user_id)
+        self.friends_data = DuolingoFriendsData(self.username, self.password, self.jwt, user_id=user_id)
+        self.friend_streaks_data = DuolingoFriendStreaksData(self.username, self.password, self.jwt, user_id=user_id)
+        self.quest_data = DuolingoQuestsData(self.username, self.password, self.jwt, user_id=user_id)
 
     def _login(self):
         """

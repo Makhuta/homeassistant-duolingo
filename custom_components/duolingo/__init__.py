@@ -54,17 +54,23 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         raise ConfigEntryNotReady("Failed to Log-in") from err
     coordinator = DuolingoDataCoordinator(hass, clients)
 
-    await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
-    async_dispatcher_connect(coordinator.hass, FORCE_SCRAPE.format(config_entry.entry_id), coordinator.async_refresh)
 
+    hass.async_create_task(finish_setup(hass, coordinator, config_entry))
+
+    return True
+
+async def finish_setup(hass: HomeAssistant, coordinator: DuolingoDataCoordinator, config_entry: ConfigEntry):
+    await coordinator.async_config_entry_first_refresh()
+
+    async_dispatcher_connect(coordinator.hass, FORCE_SCRAPE.format(config_entry.entry_id), coordinator.async_refresh)
 
     await cleanup_existing_entities_and_devices(hass, config_entry)
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+
     config_entry.async_on_unload(config_entry.add_update_listener(update_listener))
 
-    return True
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Unload Duolingo config entry."""
