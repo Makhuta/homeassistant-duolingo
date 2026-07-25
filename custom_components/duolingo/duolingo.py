@@ -50,7 +50,7 @@ class Base:
         self.start_on_monday = start_on_monday
 
     def _check_login(self):
-        resp = self._make_req(f"https://www.duolingo.com/2017-06-30/friends/users?username={self.username}&searchType=USERNAME")
+        resp = self._make_req(f"https://www.duolingo.com/2023-05-23/friends/users?username={self.username}&searchType=USERNAME")
         return resp.status_code == 200
 
     def _make_req(self, url, data=None, params=None, method=None, headers = {}, android=False):
@@ -136,13 +136,12 @@ class DuolingoUserData(DuolingoBase):
         """
         super().__init__(username, password, jwt, *args, **kwargs)
     
-
-    
     def update(self, *args, **kwargs):
         old_data = self._data
         try:
             by_username = self._get_data(self.username)
             by_id = self._get_data_by_id(by_username.get("id"))
+            xp_summaries = self._get_xp_summaries_by_id(by_username.get("id"))
             learning_lang_id = by_id.get("currentCourseId")
             learning_lang_abbr = by_id.get("learningLanguage")
             if learning_lang_id is not None and learning_lang_abbr is not None:
@@ -154,7 +153,8 @@ class DuolingoUserData(DuolingoBase):
                         full_by_id["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
             else:
                 full_by_id = by_id
-            self._data = {"by_username": by_username, "by_id": full_by_id, "last_update": self._make_latest_update_date()}
+
+            self._data = {"by_username": by_username, "by_id": {**full_by_id, "xp_summaries": xp_summaries}, "last_update": self._make_latest_update_date()}
         except:
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
 
@@ -185,14 +185,29 @@ class DuolingoUserData(DuolingoBase):
 
     def _get_data_by_id(self, user_id=None):
         """
-        Get user's data from ``https://www.duolingo.com/2017-06-30/users/<user_id>``.
+        Get user's data from ``https://www.duolingo.com/2023-05-23/users/<user_id>``.
         """
         if user_id is None:
             user_id = self.user_id
         if user_id is None:
             raise Exception("User ID is None")
         
-        get = self._make_req(f"https://www.duolingo.com/2017-06-30/users/{user_id}")
+        get = self._make_req(f"https://www.duolingo.com/2023-05-23/users/{user_id}")
+        if get.status_code == 404:
+            raise Exception('User not found')
+        else:
+            return get.json()
+
+    def _get_xp_summaries_by_id(self, user_id=None):
+        """
+        Get user's data from ``https://www.duolingo.com/2023-05-23/users/<user_id>/xp_summaries``.
+        """
+        if user_id is None:
+            user_id = self.user_id
+        if user_id is None:
+            raise Exception("User ID is None")
+
+        get = self._make_req(f"https://www.duolingo.com/2023-05-23/users/{user_id}/xp_summaries")
         if get.status_code == 404:
             raise Exception('User not found')
         else:
@@ -205,12 +220,12 @@ class DuolingoUserData(DuolingoBase):
     @property
     def user_id_fast(self):
         """
-        Get user's data from ``https://www.duolingo.com/2017-06-30/friends/users?username=<username>&searchType=USERNAME``.
+        Get user's data from ``https://www.duolingo.com/2023-05-23/friends/users?username=<username>&searchType=USERNAME``.
         """
         if self.username is None:
             raise Exception("Username is None")
 
-        get = self._make_req(f"https://www.duolingo.com/2017-06-30/friends/users?username={self.username}&searchType=USERNAME")
+        get = self._make_req(f"https://www.duolingo.com/2023-05-23/friends/users?username={self.username}&searchType=USERNAME")
         if get.status_code == 404:
             raise Exception('User not found')
 
@@ -229,16 +244,26 @@ class DuolingoUserData(DuolingoBase):
         try:
             output = []
             for course in self._data.get("by_id", {}).get("courses", []):
-                if not all(k in course.keys() for k in ["title", "learningLanguage", "xp", "fromLanguage", "id"]):
+                if not all(k in course.keys() for k in ["title", "learningLanguage", "xp", "fromLanguage", "id"]) and not("id" in course.keys() and course["id"] in ("MUSIC_MT", "CHESS_CH", "MATH_BT")):
                     continue
-                output.append({
-                    "name": course["title"],
-                    "language": course["learningLanguage"],
-                    "from": course["fromLanguage"],
-                    "xp": course["xp"],
-                    "id": course["id"],
-                    "score": course.get("cefrScore"),
-                })
+                if course["id"] in ("MUSIC_MT", "CHESS_CH", "MATH_BT"):
+                    output.append({
+                        "name": str(course["subject"]).capitalize(),
+                        "language": course["topic"],
+                        "from": course["fromLanguage"],
+                        "xp": course["xp"],
+                        "id": course["id"],
+                        "score": course.get("cefrScore"),
+                    })
+                else:
+                    output.append({
+                        "name": course["title"],
+                        "language": course["learningLanguage"],
+                        "from": course["fromLanguage"],
+                        "xp": course["xp"],
+                        "id": course["id"],
+                        "score": course.get("cefrScore"),
+                    })
             return output
         except:
             return []
@@ -304,13 +329,13 @@ class DuolingoUserData(DuolingoBase):
         
     def lessons_on(self, midnight:datetime) -> list[dict]:
         try:
-            xp_gains = self._data.get("by_username", {}).get("calendar", [])
+            xp_days = self._data.get("by_id", {}).get("xp_summaries", {}).get("summaries", [])
             next_midnight = midnight + timedelta(days=1)
 
             midnight_timestamp = midnight.timestamp()
             next_midnight_timestamp = next_midnight.timestamp()
 
-            return [lesson for lesson in xp_gains if midnight_timestamp <= int(lesson['datetime']/1000) <= next_midnight_timestamp]
+            return [xp_day for xp_day in xp_days if midnight_timestamp <= int(xp_day['date']) <= next_midnight_timestamp]
         except:
             return []
 
@@ -351,7 +376,7 @@ class DuolingoUserData(DuolingoBase):
             midnight = datetime.fromordinal(datetime.today().replace(hour=0, minute=0, second=0, microsecond=0).date().toordinal())
 
             lessons = self.lessons_on(midnight)
-            return sum(x['improvement'] for x in lessons)
+            return sum(x.get("gainedXp", 0) for x in lessons)
         except:
             return -1
 
@@ -361,7 +386,7 @@ class DuolingoUserData(DuolingoBase):
             output = {}
             lessons = self.lessons_week
             for k, lessons_day in lessons.items():
-                output[k] = sum([lesson.get("improvement", 0) for lesson in lessons_day])
+                output[k] = sum([lesson.get("gainedXp", 0) for lesson in lessons_day])
             return output
         except:
             return {}
@@ -783,9 +808,9 @@ class DuolingoFriendStreaksData(DuolingoBase):
 
     def _get_data(self):
         """
-        Get user's quests data from ``https://www.duolingo.com/2017-06-30/friends/users/<user_id>/matches``.
+        Get user's quests data from ``https://www.duolingo.com/2023-05-23/friends/users/<user_id>/matches``.
         """
-        get = self._make_req(f"https://www.duolingo.com/2017-06-30/friends/users/{self.user_id}/matches", params={"activityName": "friendsStreak"})
+        get = self._make_req(f"https://www.duolingo.com/2023-05-23/friends/users/{self.user_id}/matches", params={"activityName": "friendsStreak"})
         if get.status_code == 404:
             raise Exception('User not found')
         else:
