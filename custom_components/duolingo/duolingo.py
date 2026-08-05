@@ -373,10 +373,8 @@ class DuolingoUserData(DuolingoBase):
     @property
     def xp(self) -> int:
         try:
-            midnight = datetime.fromordinal(datetime.today().replace(hour=0, minute=0, second=0, microsecond=0).date().toordinal())
-
-            lessons = self.lessons_on(midnight)
-            return sum(x.get("gainedXp", 0) for x in lessons)
+            lessons = self.lessons_today
+            return sum(int(lesson.get("gainedXp") or 0) for lesson in lessons)
         except:
             return -1
 
@@ -386,7 +384,7 @@ class DuolingoUserData(DuolingoBase):
             output = {}
             lessons = self.lessons_week
             for k, lessons_day in lessons.items():
-                output[k] = sum([lesson.get("gainedXp", 0) for lesson in lessons_day])
+                output[k] = sum(int(lesson.get("gainedXp") or 0) for lesson in lessons_day)
             return output
         except:
             return {}
@@ -749,12 +747,13 @@ class DuolingoQuestsData(DuolingoBase):
                         friend_progress = friend_progress[0]
                     else:
                         raise Exception
+                    progress_increments = [int(increment) or 0 for increment in friend_progress.get("progressIncrements", [])]
                     friend = {
                         "user_id": friend_progress.get("userId", "?"),
                         "display_name": friend_progress.get("displayName", "?"),
                         "avatar": f'{friend_progress.get("avatarUrl", "https://simg-ssl.duolingo.com/avatar/default_2")}/large',
-                        "increments": friend_progress.get("progressIncrements", []),
-                        "xp": sum(friend_progress.get("progressIncrements", [])),
+                        "increments": progress_increments,
+                        "xp": sum(progress_increments),
                     }
                 except:
                     friend = {
@@ -765,10 +764,11 @@ class DuolingoQuestsData(DuolingoBase):
                         "xp": 0,
                     }
                 if key.endswith("friends_quest"):
+                    progress_increments = [int(increment) or 0 for increment in quest.get("progressIncrements", [])]
                     return {
                         "progress": quest.get("progress", -1),
-                        "increments": quest.get("progressIncrements", []),
-                        "xp": sum(quest.get("progressIncrements", [])),
+                        "increments": progress_increments,
+                        "xp": sum(progress_increments),
                         "friend": friend
                     }
             raise Exception
