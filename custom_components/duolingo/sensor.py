@@ -159,7 +159,9 @@ SENSORS: list[DuolingoEntityDescription | Callable] = [
 def process_friend_quest(x):
     q = x.get("friends", {})
     if q.get("friend", {}).get("display_name") == "?":
-        return {}
+        return {
+            "friend_avatar": q.get("friend", {}).get("avatar"),
+        }
     return {
         "progress": q.get("progress"),
         "increments": q.get("increments"),

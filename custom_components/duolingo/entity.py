@@ -145,6 +145,8 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
                         self._attrs = output
                     if type(attrs) == functionType:
                         self._attrs = attrs(sensor_category)
+                        if "friend_avatar" in self._attrs:
+                            self._attrs['entity_picture'] = self._attrs.get('friend_avatar')
         except Exception as e:
             _LOGGER.error(e)
 
