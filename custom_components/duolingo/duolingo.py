@@ -53,14 +53,16 @@ class Base:
         resp = self._make_req(f"https://www.duolingo.com/2023-05-23/friends/users?username={self.username}&searchType=USERNAME")
         return resp.status_code == 200
 
-    def _make_req(self, url, data=None, params=None, method=None, headers = {}, android=False):
+    def _make_req(self, url, data=None, params=None, method=None, headers=None, android=False):
+        if headers is None:
+            headers = {}
         if self.jwt is not None:
             headers['Authorization'] = 'Bearer ' + self.jwt
             self.session.cookies.set("jwt_token", self.jwt, domain=".duolingo.com")
 
         headers['User-Agent'] = self.USER_AGENT(android)
         if not method:
-            method = 'POST' or 'PATCH' if data else 'GET'
+            method = 'POST' if data else 'GET'
         req = requests.Request(method,
                                url,
                                json=data,
@@ -76,7 +78,7 @@ class Base:
         return resp
 
     def _make_latest_update_date(self):
-        return datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def validate_token(self):
         try:
@@ -135,6 +137,8 @@ class DuolingoUserData(DuolingoBase):
         :param jwt: Duolingo login token. Will be checked and used if it is valid request.
         """
         super().__init__(username, password, jwt, *args, **kwargs)
+        self._internal_data = {}
+        self._update_internal_data()
     
     def update(self, *args, **kwargs):
         old_data = self._data
@@ -144,19 +148,36 @@ class DuolingoUserData(DuolingoBase):
             xp_summaries = self._get_xp_summaries_by_id(by_username.get("id"))
             learning_lang_id = by_id.get("currentCourseId")
             learning_lang_abbr = by_id.get("learningLanguage")
-            if learning_lang_id is not None and learning_lang_abbr is not None:
+            if learning_lang_id is not None and learning_lang_abbr is not None and self._should_update_courses():
                 full_by_id = self._update_data_from_different_courses(by_id)
                 switched_data = self.switch_language(by_username.get("id"), learning_lang_id, learning_lang_abbr, ["currentCourse"])
                 for out_course_id in range(len(full_by_id.get("courses", []))):
                     out_course = full_by_id["courses"][out_course_id]
                     if out_course.get("fromLanguage") == learning_lang_abbr and out_course.get("id") == learning_lang_id and switched_data:
                         full_by_id["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
+                self._change_already_updated()
             else:
                 full_by_id = by_id
 
             self._data = {"by_username": by_username, "by_id": {**full_by_id, "xp_summaries": xp_summaries}, "last_update": self._make_latest_update_date()}
         except:
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
+        self._update_internal_data()
+
+    def _should_update_courses(self):
+        return not self._internal_data.get("already_updated", False)
+
+    def _update_internal_data(self):
+        last_xp = self._internal_data.get("last_xp")
+        current_xp = self.xp
+
+        if last_xp is not None and (last_xp == -1 or last_xp != current_xp):
+            self._internal_data["already_updated"] = False
+
+        self._internal_data["last_xp"] = current_xp
+
+    def _change_already_updated(self):
+        self._internal_data["already_updated"] = True
 
     def _update_data_from_different_courses(self, initial_data):
         out = initial_data.copy()
@@ -335,7 +356,7 @@ class DuolingoUserData(DuolingoBase):
             midnight_timestamp = midnight.timestamp()
             next_midnight_timestamp = next_midnight.timestamp()
 
-            return [xp_day for xp_day in xp_days if midnight_timestamp <= int(xp_day['date']) <= next_midnight_timestamp]
+            return [xp_day for xp_day in xp_days if midnight_timestamp <= int(xp_day['date']) < next_midnight_timestamp]
         except:
             return []
 
@@ -690,7 +711,7 @@ class DuolingoQuestsData(DuolingoBase):
             'Accepts-Encoding': "gzip, deflate, br, zstd",
             'Accept': "application/json; charset=UTF-8"
         }
-        get = self._make_req(f"https://goals-api.duolingo.com/users/{self.user_id}/progress", headers=headers, params={"timezone": datetime.now().astimezone().tzinfo, "ui_language": "en"}, android=True)
+        get = self._make_req(f"https://goals-api.duolingo.com/users/{self.user_id}/progress", headers=headers, params={"timezone": datetime.now(timezone.utc).astimezone().tzinfo, "ui_language": "en"}, android=True)
         if get.status_code == 404:
             raise Exception('User not found')
         else:
@@ -704,7 +725,7 @@ class DuolingoQuestsData(DuolingoBase):
             'Accepts-Encoding': "gzip, deflate, br, zstd",
             'Accept': "application/json; charset=UTF-8"
         }
-        get = self._make_req(f"https://goals-api.duolingo.com/schema", headers=headers, params={"timezone": datetime.now().astimezone().tzinfo, "ui_language": "en"}, android=True)
+        get = self._make_req(f"https://goals-api.duolingo.com/schema", headers=headers, params={"timezone": datetime.now(timezone.utc).astimezone().tzinfo, "ui_language": "en"}, android=True)
         if get.status_code == 404:
             raise Exception('Schema not found')
         else:
@@ -881,7 +902,7 @@ class DuolingoFriendStreaksData(DuolingoBase):
             return output
         except:
             return []
-        
+
 class Duolingo(Base):
     def __init__(self, username, password=None, jwt=None, *args, **kwargs):
         """
