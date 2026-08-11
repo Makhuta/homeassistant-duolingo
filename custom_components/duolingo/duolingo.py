@@ -148,13 +148,18 @@ class DuolingoUserData(DuolingoBase):
             xp_summaries = self._get_xp_summaries_by_id(by_username.get("id"))
             learning_lang_id = by_id.get("currentCourseId")
             learning_lang_abbr = by_id.get("learningLanguage")
-            if learning_lang_id is not None and learning_lang_abbr is not None and self._should_update_courses():
-                full_by_id = self._update_data_from_different_courses(by_id)
-                switched_data = self.switch_language(by_username.get("id"), learning_lang_id, learning_lang_abbr, ["currentCourse"])
-                for out_course_id in range(len(full_by_id.get("courses", []))):
-                    out_course = full_by_id["courses"][out_course_id]
-                    if out_course.get("fromLanguage") == learning_lang_abbr and out_course.get("id") == learning_lang_id and switched_data:
-                        full_by_id["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
+            if learning_lang_id is not None and learning_lang_abbr is not None:
+                was_updated, full_by_id = self._update_data_from_different_courses(by_id)
+                if was_updated:
+                    switched_data = self.switch_language(by_username.get("id"), learning_lang_id, learning_lang_abbr, ["currentCourse"])
+                    for out_course_id in range(len(full_by_id.get("courses", []))):
+                        out_course = full_by_id["courses"][out_course_id]
+                        if out_course.get("fromLanguage") == learning_lang_abbr and out_course.get("id") == learning_lang_id and switched_data:
+                            full_by_id["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
+                else:
+                    full_by_id = by_id
+                    if "courses" in self._data.get("by_id", {}):
+                        full_by_id["courses"] = self._data["by_id"].get("courses")
                 self._change_already_updated()
             else:
                 full_by_id = by_id
@@ -181,6 +186,8 @@ class DuolingoUserData(DuolingoBase):
 
     def _update_data_from_different_courses(self, initial_data):
         out = initial_data.copy()
+        if not self._should_update_courses():
+            return False, out
         for data in initial_data.get("courses", []):
             if "id" not in data.keys() or "fromLanguage" not in data.keys():
                 continue
@@ -189,7 +196,7 @@ class DuolingoUserData(DuolingoBase):
                 out_course = out["courses"][out_course_id]
                 if out_course.get("fromLanguage") == data["fromLanguage"] and out_course.get("id") == data["id"] and switched_data:
                     out["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
-        return out
+        return True, out
 
     def _get_data(self, username=None):
         """
