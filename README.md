@@ -70,6 +70,7 @@ Inside the Console is your unique JWT token, you can copy it and use it in HomeA
 
 2. If you are unable to paste into your browser console (the command for getting the Duolingo token) type <code>allow pasting</code> into the console and press Enter, after that you should be able to paste the command.
 
+3. The users you want to monitor are added using usernames in the integration config and NOT their e-mails.
 
 ### Top contributors:
 
