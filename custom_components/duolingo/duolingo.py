@@ -33,9 +33,9 @@ TIER_LIST: Final = {
                         "9": "Diamond",
                     }
 class Base:
-    USER_AGENT = lambda _, x: "Duodroid/6.58.6 (Linux; Android 12)" \
+    USER_AGENT = lambda _, x: "Duodroid/7.6.0 (Linux; Android 15)" \
                            if x else \
-                           "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36"
+                           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
 
     def __init__(self, username, password=None, jwt=None, start_on_monday=True, *args, **kwargs):
         """
@@ -70,11 +70,17 @@ class Base:
                                headers=headers)
         prepped = req.prepare()
         resp = self.session.send(prepped)
-        if resp.status_code == 403 and resp.json().get("blockScript") is not None:
-            raise CaptchaException(
-                "Request to URL: {}, using user agent {}, was blocked, and requested a captcha to be solved. "
-                "Try changing the user agent and logging in again.".format(url, self.USER_AGENT(android))
-            )
+        if resp.status_code == 403:
+            try:
+                if resp.json().get("blockScript") is not None:
+                    raise CaptchaException(
+                        "Request to URL: {}, using user agent {}, was blocked, and requested a captcha to be solved. "
+                        "Try changing the user agent and logging in again.".format(url, self.USER_AGENT(android))
+                    )
+            except JSONDecodeError:
+                pass
+        if resp.status_code >= 400:
+            raise DuolingoException(f"Request to URL: {url}, returned status code {resp.status_code}")
         return resp
 
     def _make_latest_update_date(self):
@@ -121,13 +127,13 @@ class DuolingoBase(Base):
             return False
         data = {"signal": None, "currentCourseId": course_id, "fromLanguage": from_lang}
         url = f"https://www.duolingo.com/2023-05-23/users/{user_id}{'?fields=' + ','.join(fields) if fields is not None else ''}"
-        request = self._make_req(url, data, method='PATCH')
 
         try:
+            request = self._make_req(url, data, method='PATCH')
             parse = request.json()
             return parse
-        except ValueError:
-            raise DuolingoException('Failed to switch language')
+        except (ValueError, DuolingoException):
+            return False
 
 class DuolingoUserData(DuolingoBase):
     def __init__(self, username, password=None, jwt=None, *args, **kwargs):
@@ -165,7 +171,8 @@ class DuolingoUserData(DuolingoBase):
                 full_by_id = by_id
 
             self._data = {"by_username": by_username, "by_id": {**full_by_id, "xp_summaries": xp_summaries}, "last_update": self._make_latest_update_date()}
-        except:
+        except Exception as err:
+            _LOGGER.warning("Failed to update user data for %s: %s", self.username, err, exc_info=True)
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
         self._update_internal_data()
 
@@ -260,11 +267,18 @@ class DuolingoUserData(DuolingoBase):
         result = get.json()
         for user in result.get("users", []):
             user_username = user.get("username")
-            if user_username is not None and user_username == self.username:
+            if user_username is not None and user_username.lower() == self.username.lower():
                 if not("id" in user):
                     raise Exception("User doesn't contain ID")
 
                 return user["id"]
+
+        user_data = self._get_data(self.username)
+        user_id = user_data.get("id")
+        if user_id is None:
+            raise Exception("User doesn't contain ID")
+
+        return user_id
         
 
     @property
@@ -324,7 +338,18 @@ class DuolingoUserData(DuolingoBase):
     @property
     def previous_streak(self) -> dict:
         try:
-            streak = self._data.get("by_id", {}).get("streakData", {}).get("previousStreak", {})
+            streak = self._data.get("by_id", {}).get("streakData", {}).get("previousStreak") or {}
+            if not streak:
+                last_streak = self._data.get("by_id", {}).get("lastStreak", {})
+                length = last_streak.get("length", -1)
+                days_ago = last_streak.get("daysAgo", 0)
+                end_date = (datetime.today() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+                start_date = (datetime.today() - timedelta(days=days_ago + max(length - 1, 0))).strftime("%Y-%m-%d")
+                return {
+                    "start": start_date,
+                    "end": end_date,
+                    "length": length,
+                }
             return {
                 "start": streak.get("startDate", "1900-01-01"),
                 "end": streak.get("endDate", "1900-01-01"),
@@ -531,14 +556,15 @@ class DuolingoLeaderboardData(DuolingoBase):
         old_data = self._data
         try:
             self._data = {**self._get_data(), "last_update": self._make_latest_update_date()}
-        except:
+        except Exception as err:
+            _LOGGER.warning("Failed to update leaderboard data for %s: %s", self.username, err, exc_info=True)
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
 
     def _get_data(self):
         """
         Get user's leadorboard data from ``https://duolingo-leaderboards-prod.duolingo.com/leaderboards/7d9f5dd1-8423-491a-91f2-2532052038ce/users/<user_id>``.
         """
-        get = self._make_req(f"https://duolingo-leaderboards-prod.duolingo.com/leaderboards/7d9f5dd1-8423-491a-91f2-2532052038ce/users/{self.user_id}")
+        get = self._make_req(f"https://duolingo-leaderboards-prod.duolingo.com/leaderboards/7d9f5dd1-8423-491a-91f2-2532052038ce/users/{self.user_id}", params={"client_unlocked": "true", "get_reactions": "true", "_": int(datetime.now().timestamp() * 1000)})
         if get.status_code == 404:
             raise Exception('User not found')
         else:
@@ -635,7 +661,8 @@ class DuolingoFriendsData(DuolingoBase):
         old_data = self._data
         try:
             self._data = {**self._get_data(), "last_update": self._make_latest_update_date()}
-        except:
+        except Exception as err:
+            _LOGGER.warning("Failed to update friends data for %s: %s", self.username, err, exc_info=True)
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
 
     def _get_data(self, limit=1000):
@@ -703,7 +730,8 @@ class DuolingoQuestsData(DuolingoBase):
         old_data = self._data
         try:
             self._data = {"progress": self._get_data_progress(), "schema": self._get_data_schema(), "last_update": self._make_latest_update_date()}
-        except:
+        except Exception as err:
+            _LOGGER.warning("Failed to update quests data for %s: %s", self.username, err, exc_info=True)
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
 
     @property
@@ -715,7 +743,7 @@ class DuolingoQuestsData(DuolingoBase):
         Get user's progress data from ``https://goals-api.duolingo.com/users/<user_id>/progress``.
         """
         headers = {
-            'Accepts-Encoding': "gzip, deflate, br, zstd",
+            'Accept-Encoding': "gzip, deflate, br, zstd",
             'Accept': "application/json; charset=UTF-8"
         }
         get = self._make_req(f"https://goals-api.duolingo.com/users/{self.user_id}/progress", headers=headers, params={"timezone": datetime.now(timezone.utc).astimezone().tzinfo, "ui_language": "en"}, android=True)
@@ -729,7 +757,7 @@ class DuolingoQuestsData(DuolingoBase):
         Get schema data from ``https://goals-api.duolingo.com/schema``.
         """
         headers = {
-            'Accepts-Encoding': "gzip, deflate, br, zstd",
+            'Accept-Encoding': "gzip, deflate, br, zstd",
             'Accept': "application/json; charset=UTF-8"
         }
         get = self._make_req(f"https://goals-api.duolingo.com/schema", headers=headers, params={"timezone": datetime.now(timezone.utc).astimezone().tzinfo, "ui_language": "en"}, android=True)
@@ -831,7 +859,8 @@ class DuolingoFriendStreaksData(DuolingoBase):
             streaks = self._get_data()
             matches = [match["matchId"] for match in streaks.get("friendsStreak", {}).get("confirmedMatches", []) if "matchId" in match]
             self._data = {"friend_streak": streaks, "matches": self._get_data_matches(matches), "last_update": self._make_latest_update_date()}
-        except:
+        except Exception as err:
+            _LOGGER.warning("Failed to update friend streaks for %s: %s", self.username, err, exc_info=True)
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
 
     def _get_data(self):
