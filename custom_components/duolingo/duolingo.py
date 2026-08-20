@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from json import JSONDecodeError
 from typing import Final
 
+LIMIT = 10
 
 class DuolingoException(Exception):
     pass
@@ -157,7 +158,14 @@ class DuolingoUserData(DuolingoBase):
             if learning_lang_id is not None and learning_lang_abbr is not None:
                 was_updated, full_by_id = self._update_data_from_different_courses(by_id)
                 if was_updated:
-                    switched_data = self.switch_language(by_username.get("id"), learning_lang_id, learning_lang_abbr, ["currentCourse"])
+                    tries = 0
+                    while tries <= LIMIT:
+                        try:
+                            switched_data = self.switch_language(by_username.get("id"), learning_lang_id, learning_lang_abbr, ["currentCourse{scoreMetadata{reachedScore}}"])
+                            break
+                        except Exception as err:
+                            _LOGGER.warning("Failed to update user data for %s: %s", self.username, err, exc_info=True)
+                        tries = tries + 1
                     for out_course_id in range(len(full_by_id.get("courses", []))):
                         out_course = full_by_id["courses"][out_course_id]
                         if out_course.get("fromLanguage") == learning_lang_abbr and out_course.get("id") == learning_lang_id and switched_data:
@@ -179,9 +187,42 @@ class DuolingoUserData(DuolingoBase):
     def _should_update_courses(self):
         return not self._internal_data.get("already_updated", False)
 
+    def _should_update_course(self, ffrom=None, to=None):
+        if ffrom is None or to is None:
+            return False
+        if len(self.courses) < 1:
+            return True
+        for course in self.courses:
+            cffrom = course.get("from")
+            cto = course.get("language")
+            xp = course.get("xp")
+            if cffrom is None or cto is None or xp is None:
+                continue
+            if cffrom == ffrom and cto == to:
+                key = f"{ffrom}->{to}"
+                if key not in self._internal_data["courses_last_xp"] and "xp" not in self._internal_data["courses_last_xp"][key]["xp"]:
+                    return True
+                return self._internal_data["courses_last_xp"][key]["xp"] != xp
+        return False
+
     def _update_internal_data(self):
         last_xp = self._internal_data.get("last_xp")
         current_xp = self.xp
+
+        if self._internal_data.get("courses_last_xp") is None:
+            self._internal_data["courses_last_xp"] = {}
+
+        for course in self.courses:
+            ffrom = course.get("from")
+            to = course.get("language")
+            xp = course.get("xp")
+            if ffrom is None or to is None:
+                continue
+            key = f"{ffrom}->{to}"
+            if key not in self._internal_data["courses_last_xp"]:
+                self._internal_data["courses_last_xp"][key] = {}
+            self._internal_data["courses_last_xp"][key]["xp"] = xp
+            self._internal_data["courses_last_xp"][key]["score"] = course.get("score", -1)
 
         if last_xp is not None and (last_xp == -1 or last_xp != current_xp):
             self._internal_data["already_updated"] = False
@@ -195,14 +236,29 @@ class DuolingoUserData(DuolingoBase):
         out = initial_data.copy()
         if not self._should_update_courses():
             return False, out
+        skipped = set()
         for data in initial_data.get("courses", []):
-            if "id" not in data.keys() or "fromLanguage" not in data.keys():
+            dkeys = data.keys()
+            if "id" not in dkeys or "fromLanguage" not in dkeys or "learningLanguage" not in dkeys:
                 continue
-            switched_data = self.switch_language(initial_data.get("id"), data["id"], data["fromLanguage"], ["currentCourse"])
+            if not self._should_update_course(data["fromLanguage"], data["learningLanguage"]):
+                skipped.add(f'{data["fromLanguage"]}->{data["learningLanguage"]}')
+                continue
+            switched_data = self.switch_language(initial_data.get("id"), data["id"], data["fromLanguage"], ["currentCourse{scoreMetadata{reachedScore}}"])
             for out_course_id in range(len(out.get("courses", []))):
                 out_course = out["courses"][out_course_id]
                 if out_course.get("fromLanguage") == data["fromLanguage"] and out_course.get("id") == data["id"] and switched_data:
                     out["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
+        for out_course_id in range(len(out.get("courses", []))):
+            out_course = out["courses"][out_course_id]
+            ffrom = out_course.get("fromLanguage")
+            to = out_course.get("learningLanguage")
+            if ffrom is None or to is None:
+                continue
+            key = f"{ffrom}->{to}"
+            if key in skipped and key in self._internal_data["courses_last_xp"]:
+                out["courses"][out_course_id]["cefrScore"] = self._internal_data["courses_last_xp"][key]["score"]
+        
         return True, out
 
     def _get_data(self, username=None):
