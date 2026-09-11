@@ -2,7 +2,7 @@ from datetime import timedelta
 import logging
 from typing import Dict, Any
 
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError
 
@@ -30,13 +30,27 @@ class DuolingoDataCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
     async def _async_update_data(self) -> Dict[str, Any]:
         try:
             data = {}
+            errors = []
             for client in self._clients:
+                username = client.get_username()
                 try:
-                    data[client.get_username()] = await self.hass.async_add_executor_job(client.update)
-                except:
-                    pass
+                    data[username] = await self.hass.async_add_executor_job(client.update)
+                except Exception as err:
+                    errors.append((username, err))
+                    _LOGGER.warning(
+                        "Failed to update Duolingo data for %s: %s",
+                        username,
+                        err,
+                        exc_info=True,
+                    )
+
+            if errors and not data:
+                raise UpdateFailed("Failed to update Duolingo data for all configured users") from errors[0][1]
+
             return data
         except FailedToLogin as err:
             raise ConfigEntryError("Failed to Log-in") from err
+        except UpdateFailed:
+            raise
         except Exception as err:
-            raise ConfigEntryError("Duolingo encoutered unknown") from err
+            raise ConfigEntryError("Duolingo encountered unknown error") from err
