@@ -144,8 +144,6 @@ class DuolingoUserData(DuolingoBase):
         :param jwt: Duolingo login token. Will be checked and used if it is valid request.
         """
         super().__init__(username, password, jwt, *args, **kwargs)
-        self._internal_data = {}
-        self._update_internal_data()
     
     def update(self, *args, **kwargs):
         old_data = self._data
@@ -156,22 +154,20 @@ class DuolingoUserData(DuolingoBase):
             learning_lang_id = by_id.get("currentCourseId")
             learning_lang_abbr = by_id.get("learningLanguage")
             if learning_lang_id is not None and learning_lang_abbr is not None:
-                was_updated, full_by_id = self._update_data_from_different_courses(by_id)
+                was_updated, full_by_id = self._update_data_from_different_courses(by_username.get("id"), by_id)
                 if was_updated:
-                    switched_data = False
                     tries = 0
                     while tries <= LIMIT:
                         try:
-                            switched_data = self.switch_language(by_username.get("id"), learning_lang_id, learning_lang_abbr, ["currentCourse{scoreMetadata{reachedScore}}"])
+                            cefr_data = self._get_cefr_score(by_username.get("id"), learning_lang_id)
                             break
                         except Exception as err:
                             _LOGGER.warning("Failed to update user data for %s: %s", self.username, err, exc_info=True)
                         tries = tries + 1
                     for out_course_id in range(len(full_by_id.get("courses", []))):
                         out_course = full_by_id["courses"][out_course_id]
-                        if out_course.get("fromLanguage") == learning_lang_abbr and out_course.get("id") == learning_lang_id and switched_data:
-                            full_by_id["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
-                self._change_already_updated()
+                        if out_course.get("fromLanguage") == learning_lang_abbr and out_course.get("id") == learning_lang_id and cefr_data:
+                            full_by_id["courses"][out_course_id]["cefrScore"] = cefr_data.get("scoreMetadata", {}).get("reachedScore")
             else:
                 full_by_id = by_id
 
@@ -179,101 +175,25 @@ class DuolingoUserData(DuolingoBase):
         except Exception as err:
             _LOGGER.warning("Failed to update user data for %s: %s", self.username, err, exc_info=True)
             self._data = {**old_data, "last_update": self._make_latest_update_date()}
-        self._update_internal_data()
 
-    def _should_update_courses(self):
-        return not self._internal_data.get("already_updated", False)
-
-    def _should_update_course(self, ffrom=None, to=None):
-        if ffrom is None or to is None:
-            return False
-
-        key = f"{ffrom}->{to}"
-        last_course = self._internal_data.get("courses_last_xp", {}).get(key)
-        if not last_course or "xp" not in last_course:
-            return True
-
-        for course in self.courses:
-            cffrom = course.get("from")
-            cto = course.get("language")
-            xp = course.get("xp")
-            if cffrom is None or cto is None or xp is None:
-                continue
-            if cffrom == ffrom and cto == to:
-                return last_course["xp"] != xp
-        return True
-
-    def _update_internal_data(self):
-        last_xp = self._internal_data.get("last_xp")
-        current_xp = self.xp
-
-        if self._internal_data.get("courses_last_xp") is None:
-            self._internal_data["courses_last_xp"] = {}
-
-        for course in self.courses:
-            ffrom = course.get("from")
-            to = course.get("language")
-            xp = course.get("xp")
-            if ffrom is None or to is None:
-                continue
-            key = f"{ffrom}->{to}"
-            if key not in self._internal_data["courses_last_xp"]:
-                self._internal_data["courses_last_xp"][key] = {}
-            self._internal_data["courses_last_xp"][key]["xp"] = xp
-            self._internal_data["courses_last_xp"][key]["score"] = course.get("score", -1)
-
-        if last_xp is not None and (last_xp == -1 or last_xp != current_xp):
-            self._internal_data["already_updated"] = False
-
-        self._internal_data["last_xp"] = current_xp
-
-    def _change_already_updated(self):
-        self._internal_data["already_updated"] = True
-
-    def _update_data_from_different_courses(self, initial_data):
+    def _update_data_from_different_courses(self, user_id, initial_data):
         out = initial_data.copy()
-        if not self._should_update_courses():
-            self._restore_cached_course_scores(out)
-            return False, out
         skipped = set()
         for data in initial_data.get("courses", []):
             dkeys = data.keys()
-            if "id" not in dkeys or "fromLanguage" not in dkeys or "learningLanguage" not in dkeys:
-                continue
-            if not self._should_update_course(data["fromLanguage"], data["learningLanguage"]):
-                skipped.add(f'{data["fromLanguage"]}->{data["learningLanguage"]}')
+            if "id" not in dkeys or "fromLanguage" not in dkeys or "id" not in dkeys:
                 continue
             try:
-                switched_data = self.switch_language(initial_data.get("id"), data["id"], data["fromLanguage"], ["currentCourse{scoreMetadata{reachedScore}}"])
+                cefr_data = self._get_cefr_score(user_id, data["id"])
             except Exception as err:
                 _LOGGER.warning("Failed to update course data for %s: %s", self.username, err, exc_info=True)
                 continue
             for out_course_id in range(len(out.get("courses", []))):
                 out_course = out["courses"][out_course_id]
-                if out_course.get("fromLanguage") == data["fromLanguage"] and out_course.get("id") == data["id"] and switched_data:
-                    out["courses"][out_course_id]["cefrScore"] = switched_data.get("currentCourse", {}).get("scoreMetadata", {}).get("reachedScore")
-        for out_course_id in range(len(out.get("courses", []))):
-            out_course = out["courses"][out_course_id]
-            ffrom = out_course.get("fromLanguage")
-            to = out_course.get("learningLanguage")
-            if ffrom is None or to is None:
-                continue
-            key = f"{ffrom}->{to}"
-            if key in skipped and key in self._internal_data["courses_last_xp"]:
-                out["courses"][out_course_id]["cefrScore"] = self._internal_data["courses_last_xp"][key]["score"]
+                if out_course.get("fromLanguage") == data["fromLanguage"] and out_course.get("id") == data["id"] and cefr_data:
+                    out["courses"][out_course_id]["cefrScore"] = cefr_data.get("scoreMetadata", {}).get("reachedScore")
         
         return True, out
-
-    def _restore_cached_course_scores(self, data):
-        for course in data.get("courses", []):
-            ffrom = course.get("fromLanguage")
-            to = course.get("learningLanguage")
-            if ffrom is None or to is None:
-                continue
-            key = f"{ffrom}->{to}"
-            cached = self._internal_data.get("courses_last_xp", {}).get(key)
-            if cached and "score" in cached:
-                course["cefrScore"] = cached["score"]
 
     def _get_data(self, username=None):
         """
@@ -300,6 +220,23 @@ class DuolingoUserData(DuolingoBase):
         get = self._make_req(f"https://www.duolingo.com/2023-05-23/users/{user_id}")
         if get.status_code == 404:
             raise Exception('User not found')
+        else:
+            return get.json()
+
+    def _get_cefr_score(self, user_id=None, course_id=None):
+        """
+        Get user's data from ``https://www.duolingo.com/2023-05-23/users/<user_id>/courses/<course_id>?fields=authorId,scoreMetadata{reachedScore}``.
+        """
+        if user_id is None:
+            user_id = self.user_id
+        if user_id is None:
+            raise Exception("User ID is None")
+        if course_id is None:
+            raise Exception("Course ID is None")
+
+        get = self._make_req(f"https://www.duolingo.com/2023-05-23/users/{user_id}/courses/{course_id}?fields=" + ",".join(["authorId","scoreMetadata{reachedScore}"]))
+        if get.status_code == 404:
+            raise Exception('Page not found')
         else:
             return get.json()
 
