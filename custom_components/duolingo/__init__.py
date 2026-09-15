@@ -5,8 +5,15 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.const import (
     CONF_USERNAME, 
     )
-from homeassistant.helpers.device_registry import DeviceEntry, async_get as async_get_device_registry
-from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
+from homeassistant.helpers.device_registry import (
+    DeviceEntry,
+    async_entries_for_config_entry as async_device_entries_for_config_entry,
+    async_get as async_get_device_registry,
+)
+from homeassistant.helpers.entity_registry import (
+    async_entries_for_config_entry as async_entity_entries_for_config_entry,
+    async_get as async_get_entity_registry,
+)
 from homeassistant.components.persistent_notification import (
     async_create as async_create_persistent_notification,
 )
@@ -29,17 +36,21 @@ PLATFORMS = [
     Platform.BUTTON,
 ]
 
-async def cleanup_existing_entities_and_devices(hass: HomeAssistant, config_entry: ConfigEntry):
+async def cleanup_existing_entities_and_devices(
+    hass: HomeAssistant, config_entry: ConfigEntry
+) -> None:
     entity_registry = async_get_entity_registry(hass)
     device_registry = async_get_device_registry(hass)
 
-    for entity_id, entity in list(entity_registry.entities.items()):
-        if entity.config_entry_id == config_entry.entry_id:
-            entity_registry.async_remove(entity_id)
+    for entity in async_entity_entries_for_config_entry(
+        entity_registry, config_entry.entry_id
+    ):
+        entity_registry.async_remove(entity.entity_id)
 
-    for device_id, device in list(device_registry.devices.items()):
-        if config_entry.entry_id in device.config_entries:
-            device_registry.async_remove_device(device_id)
+    for device in async_device_entries_for_config_entry(
+        device_registry, config_entry.entry_id
+    ):
+        device_registry.async_remove_device(device.id)
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
