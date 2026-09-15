@@ -47,7 +47,7 @@ class DuolingoSensor(CoordinatorEntity[DuolingoDataCoordinator], SensorEntity):
         self._username = username
         self._jwt = jwt
         self._description = description
-        self.entity_id = f'sensor.{self.sanitize_text(username.lower()).lstrip("_")}_duolingo_{self.sanitize_text(description.name.lower()).rstrip("_")}'
+        self.entity_id = f'sensor.{self.sanitize_text(username.lower()).strip("_")}_duolingo_{self.sanitize_text(description.name.lower()).rstrip("_")}'
         self._attr_entity_category = description.entity_category
         self._state = None
         self._attrs = {}
