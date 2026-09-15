@@ -1,6 +1,7 @@
 import re, json, random, requests, logging
 _LOGGER = logging.getLogger(__name__)
 from datetime import datetime, timedelta, timezone
+from homeassistant.util import dt as dt_util
 from json import JSONDecodeError
 from typing import Final
 
@@ -85,7 +86,7 @@ class Base:
         return resp
 
     def _make_latest_update_date(self):
-        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return dt_util.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def validate_token(self):
         try:
@@ -350,8 +351,18 @@ class DuolingoUserData(DuolingoBase):
                 last_streak = self._data.get("by_id", {}).get("lastStreak", {})
                 length = last_streak.get("length", -1)
                 days_ago = last_streak.get("daysAgo", 0)
-                end_date = (datetime.today() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
-                start_date = (datetime.today() - timedelta(days=days_ago + max(length - 1, 0))).strftime("%Y-%m-%d")
+                end_date = (dt_util.now().replace(
+                                                hour=0,
+                                                minute=0,
+                                                second=0,
+                                                microsecond=0,
+                                                ) - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+                start_date = (dt_util.now().replace(
+                                                hour=0,
+                                                minute=0,
+                                                second=0,
+                                                microsecond=0,
+                                                ) - timedelta(days=days_ago + max(length - 1, 0))).strftime("%Y-%m-%d")
                 return {
                     "start": start_date,
                     "end": end_date,
@@ -389,24 +400,46 @@ class DuolingoUserData(DuolingoBase):
         
     def lessons_on(self, midnight:datetime) -> list[dict]:
         try:
-            xp_days = self._data.get("by_id", {}).get("xp_summaries", {}).get("summaries", [])
+            xp_days = (
+                self._data
+                .get("by_id", {})
+                .get("xp_summaries", {})
+                .get("summaries", [])
+            )
+            if midnight.tzinfo is None:
+                midnight = midnight.replace(tzinfo=dt_util.get_default_time_zone())
+
             next_midnight = midnight + timedelta(days=1)
 
-            midnight_timestamp = midnight.timestamp()
-            next_midnight_timestamp = next_midnight.timestamp()
+            midnight_utc = midnight.astimezone(timezone.utc)
+            next_midnight_utc = next_midnight.astimezone(timezone.utc)
 
-            return [xp_day for xp_day in xp_days if midnight_timestamp <= int(xp_day['date']) < next_midnight_timestamp]
+            midnight_timestamp = midnight_utc.timestamp()
+            next_midnight_timestamp = next_midnight_utc.timestamp()
+
+            return [
+                xp_day
+                for xp_day in xp_days
+                if midnight_timestamp <= int(xp_day["date"]) < next_midnight_timestamp
+            ]
         except:
             return []
 
     @property
     def lessons_today(self) -> list[dict]:
-        midnight = datetime.fromordinal(datetime.today().replace(hour=0, minute=0, second=0, microsecond=0).date().toordinal())
+        now = dt_util.now()
+        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
         return self.lessons_on(midnight)
     
     @property
     def week_dates(self) -> list[datetime]:
-        today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+        today = dt_util.now().replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
         weekday = today.weekday()
 
         if self.start_on_monday:
@@ -421,12 +454,18 @@ class DuolingoUserData(DuolingoBase):
         return [dt.strftime('%d.%m.%Y') for dt in self.week_dates]
 
     @property
-    def lessons_week(self) -> dict[str, list]:
+    def lessons_week(self) -> dict[str, list[dict]]:
         output = {}
 
         for dt in self.week_dates:
-            midnight = datetime(dt.year, dt.month, dt.day)
-            output[dt.strftime('%d.%m.%Y')] = self.lessons_on(midnight)
+            midnight = dt.replace(
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+
+            output[dt.strftime("%d.%m.%Y")] = self.lessons_on(midnight)
 
         return output
 
@@ -571,7 +610,7 @@ class DuolingoLeaderboardData(DuolingoBase):
         """
         Get user's leadorboard data from ``https://duolingo-leaderboards-prod.duolingo.com/leaderboards/7d9f5dd1-8423-491a-91f2-2532052038ce/users/<user_id>``.
         """
-        get = self._make_req(f"https://duolingo-leaderboards-prod.duolingo.com/leaderboards/7d9f5dd1-8423-491a-91f2-2532052038ce/users/{self.user_id}", params={"client_unlocked": "true", "get_reactions": "true", "_": int(datetime.now().timestamp() * 1000)})
+        get = self._make_req(f"https://duolingo-leaderboards-prod.duolingo.com/leaderboards/7d9f5dd1-8423-491a-91f2-2532052038ce/users/{self.user_id}", params={"client_unlocked": "true", "get_reactions": "true", "_": int(dt_util.utcnow().timestamp() * 1000)})
         if get.status_code == 404:
             raise Exception('User not found')
         else:
@@ -753,7 +792,7 @@ class DuolingoQuestsData(DuolingoBase):
             'Accept-Encoding': "gzip, deflate, br, zstd",
             'Accept': "application/json; charset=UTF-8"
         }
-        get = self._make_req(f"https://goals-api.duolingo.com/users/{self.user_id}/progress", headers=headers, params={"timezone": datetime.now(timezone.utc).astimezone().tzinfo, "ui_language": "en"}, android=True)
+        get = self._make_req(f"https://goals-api.duolingo.com/users/{self.user_id}/progress", headers=headers, params={"timezone": str(dt_util.get_default_time_zone()), "ui_language": "en"}, android=True)
         if get.status_code == 404:
             raise Exception('User not found')
         else:
@@ -767,7 +806,7 @@ class DuolingoQuestsData(DuolingoBase):
             'Accept-Encoding': "gzip, deflate, br, zstd",
             'Accept': "application/json; charset=UTF-8"
         }
-        get = self._make_req(f"https://goals-api.duolingo.com/schema", headers=headers, params={"timezone": datetime.now(timezone.utc).astimezone().tzinfo, "ui_language": "en"}, android=True)
+        get = self._make_req(f"https://goals-api.duolingo.com/schema", headers=headers, params={"timezone": str(dt_util.get_default_time_zone()), "ui_language": "en"}, android=True)
         if get.status_code == 404:
             raise Exception('Schema not found')
         else:
