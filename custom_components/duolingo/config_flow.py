@@ -17,7 +17,8 @@ from .const import (
     DOMAIN,
     CONF_USERNAME_LABEL,
     CONF_JWT,
-    CONF_INTERVAL
+    CONF_INTERVAL,
+    MAX_USERS,
 )
 from .helpers import setup_client
 from .duolingo_api import (
@@ -27,10 +28,9 @@ from .options_flow import DuolingoOptionFlow
 
 DUOLINGO_SCHEMA = vol.Schema({
     vol.Optional(CONF_USERNAME + "_label"): ConstantSelector(ConstantSelectorConfig(value=CONF_USERNAME_LABEL)),
-    vol.Required(CONF_USERNAME): TextSelector(TextSelectorConfig(multiple=True, multiline=False)),
+    vol.Required(CONF_USERNAME): vol.All(TextSelector(TextSelectorConfig(multiple=True, multiline=False)), vol.Length(max=MAX_USERS, msg=f"Maximum of {MAX_USERS} users allowed")),
     vol.Required(CONF_JWT): vol.All(str),
 })
-
 
 class DuolingoConfigFlow(ConfigFlow, domain=DOMAIN):
     """Config flow for the Duolingo integration."""

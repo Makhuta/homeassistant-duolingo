@@ -15,6 +15,7 @@ from .const import (
     DOMAIN, 
     CONF_USERNAME_LABEL,
     CONF_INTERVAL,
+    MAX_USERS,
     )
 
 
@@ -41,7 +42,7 @@ class DuolingoOptionFlow(OptionsFlow):
 
         DUOLINGO_SCHEMA = vol.Schema({
             vol.Optional(CONF_USERNAME + "_label"): ConstantSelector(ConstantSelectorConfig(value=CONF_USERNAME_LABEL)),
-            vol.Required(CONF_USERNAME, default=self._config_entry.data.get(CONF_USERNAME, [])): TextSelector(TextSelectorConfig(multiple=True, multiline=False)),
+            vol.Required(CONF_USERNAME, default=self._config_entry.data.get(CONF_USERNAME, [])): vol.All(TextSelector(TextSelectorConfig(multiple=True, multiline=False)), vol.Length(max=MAX_USERS, msg=f"Maximum of {MAX_USERS} users allowed")),
             vol.Required(CONF_INTERVAL, default=self._config_entry.data.get(CONF_INTERVAL, 30)): vol.All(vol.Coerce(int), vol.Range(min=10)),
         })
 
