@@ -409,18 +409,12 @@ class DuolingoUserData(DuolingoBase):
             if midnight.tzinfo is None:
                 midnight = midnight.replace(tzinfo=dt_util.get_default_time_zone())
 
-            next_midnight = midnight + timedelta(days=1)
-
-            midnight_utc = midnight.astimezone(timezone.utc)
-            next_midnight_utc = next_midnight.astimezone(timezone.utc)
-
-            midnight_timestamp = midnight_utc.timestamp()
-            next_midnight_timestamp = next_midnight_utc.timestamp()
+            target_date = midnight.date()   # stamps are at UTC midnight of the user's local day, so match on the UTC date
 
             return [
                 xp_day
                 for xp_day in xp_days
-                if midnight_timestamp <= int(xp_day["date"]) < next_midnight_timestamp
+                if datetime.fromtimestamp(int(xp_day["date"]), timezone.utc).date() == target_date
             ]
         except:
             return []
